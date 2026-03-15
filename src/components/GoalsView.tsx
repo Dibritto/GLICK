@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Target, 
   Plus, 
@@ -6,51 +6,49 @@ import {
   Calendar, 
   ChevronRight,
   Trophy,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 
 interface Goal {
   id: string;
   name: string;
-  targetAmount: number;
-  currentAmount: number;
+  target_amount: number;
+  current_amount: number;
   deadline: string;
-  category: string;
+  icon: string;
   color: string;
 }
 
-const mockGoals: Goal[] = [
-  { 
-    id: '1', 
-    name: 'Reserva de Emergência', 
-    targetAmount: 20000, 
-    currentAmount: 8500, 
-    deadline: '2026-12-31', 
-    category: 'Segurança', 
-    color: '#2CC7FF' 
-  },
-  { 
-    id: '2', 
-    name: 'Viagem Europa', 
-    targetAmount: 15000, 
-    currentAmount: 4200, 
-    deadline: '2027-06-15', 
-    category: 'Lazer', 
-    color: '#F27D26' 
-  },
-  { 
-    id: '3', 
-    name: 'Novo MacBook Pro', 
-    targetAmount: 12000, 
-    currentAmount: 12000, 
-    deadline: '2026-04-01', 
-    category: 'Equipamento', 
-    color: '#00FF9F' 
-  },
-];
-
 const GoalsView: React.FC = () => {
+  const { token } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchGoals = async () => {
+    if (!token) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/goals', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoals(data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar metas:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGoals();
+  }, [token]);
+
   return (
     <div className="p-4 md:p-8 space-y-8">
       {/* Cabeçalho */}
@@ -72,72 +70,81 @@ const GoalsView: React.FC = () => {
 
       {/* Grid de Metas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockGoals.map((goal, i) => (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.1 }}
-            key={goal.id}
-            className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all"
-          >
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="p-3 rounded-xl bg-white/5 border border-white/10"
-                  style={{ color: goal.color }}
-                >
-                  {goal.currentAmount >= goal.targetAmount ? <Trophy size={24} /> : <Target size={24} />}
+        {isLoading ? (
+          <div className="col-span-full py-20 flex flex-col items-center gap-4">
+            <Loader2 size={32} className="text-brand-blue animate-spin" />
+            <p className="text-xs text-gray-500 uppercase tracking-widest">Sincronizando Metas...</p>
+          </div>
+        ) : (
+          <>
+            {goals.map((goal, i) => (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                key={goal.id}
+                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all"
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="p-3 rounded-xl bg-white/5 border border-white/10"
+                      style={{ color: goal.color }}
+                    >
+                      {Number(goal.current_amount) >= Number(goal.target_amount) ? <Trophy size={24} /> : <Target size={24} />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Objetivo</p>
+                      <h3 className="text-lg font-bold text-white tracking-tight">{goal.name}</h3>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Progresso</p>
+                    <p className="text-lg font-mono font-bold text-white">
+                      {Math.round((Number(goal.current_amount) / Number(goal.target_amount)) * 100)}%
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">{goal.category}</p>
-                  <h3 className="text-lg font-bold text-white tracking-tight">{goal.name}</h3>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Progresso</p>
-                <p className="text-lg font-mono font-bold text-white">
-                  {Math.round((goal.currentAmount / goal.targetAmount) * 100)}%
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-4">
-              <div className="h-3 w-full bg-brand-lead/20 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(goal.currentAmount / goal.targetAmount) * 100}%` }}
-                  className="h-full shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-                  style={{ backgroundColor: goal.color }}
-                />
-              </div>
+                <div className="space-y-4">
+                  <div className="h-3 w-full bg-brand-lead/20 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(Number(goal.current_amount) / Number(goal.target_amount)) * 100}%` }}
+                      className="h-full shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                      style={{ backgroundColor: goal.color }}
+                    />
+                  </div>
 
-              <div className="flex justify-between items-end">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Acumulado</p>
-                  <p className="text-xl font-mono font-bold text-white">
-                    R$ {goal.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Acumulado</p>
+                      <p className="text-xl font-mono font-bold text-white">
+                        R$ {Number(goal.current_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Objetivo</p>
+                      <p className="text-sm font-mono font-bold text-gray-400">
+                        R$ {Number(goal.target_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right space-y-1">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Objetivo</p>
-                  <p className="text-sm font-mono font-bold text-gray-400">
-                    R$ {goal.targetAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                <Calendar size={12} />
-                <span>Prazo: {new Date(goal.deadline).toLocaleDateString('pt-BR')}</span>
-              </div>
-              <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1">
-                Aportar Capital <ChevronRight size={12} />
-              </button>
-            </div>
-          </motion.div>
-        ))}
+                <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                    <Calendar size={12} />
+                    <span>Prazo: {goal.deadline ? new Date(goal.deadline).toLocaleDateString('pt-BR') : 'Sem prazo'}</span>
+                  </div>
+                  <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1">
+                    Aportar Capital <ChevronRight size={12} />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Telemetria de Metas */}
@@ -149,7 +156,7 @@ const GoalsView: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Aporte Mensal Médio</p>
-              <p className="text-xl font-mono font-bold text-white">R$ 1.250,00</p>
+              <p className="text-xl font-mono font-bold text-white">R$ 0,00</p>
             </div>
           </div>
 
@@ -159,7 +166,7 @@ const GoalsView: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Metas Concluídas</p>
-              <p className="text-xl font-mono font-bold text-white">04 Objetivos</p>
+              <p className="text-xl font-mono font-bold text-white">{goals.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length} Objetivos</p>
             </div>
           </div>
 
@@ -169,7 +176,7 @@ const GoalsView: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Velocidade de Acúmulo</p>
-              <p className="text-xl font-mono font-bold text-white">+15% / Mês</p>
+              <p className="text-xl font-mono font-bold text-white">Telemetria Ativa</p>
             </div>
           </div>
         </div>

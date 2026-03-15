@@ -42,7 +42,7 @@ const CategoriesView: React.FC = () => {
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]">
+        <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]">
           <Plus size={16} />
           Nova Categoria
         </button>
@@ -56,12 +56,12 @@ const CategoriesView: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
             key={cat.id}
-            className="glass-panel technical-border p-5 rounded-2xl group hover:border-brand-blue/20 transition-all"
+            className="glass-panel technical-border p-5 rounded-lg group hover:border-brand-blue/20 transition-all"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
                 <div 
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-white/5 border border-white/10"
+                  className="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-white/5 border border-white/10"
                 >
                   {cat.icon}
                 </div>
@@ -114,7 +114,7 @@ const CategoriesView: React.FC = () => {
         ))}
 
         {/* Card de Adicionar */}
-        <button className="border border-dashed border-brand-lead/20 rounded-2xl p-5 flex items-center justify-center gap-3 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group">
+        <button className="border border-dashed border-brand-lead/20 rounded-lg p-5 flex items-center justify-center gap-3 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group">
           <Plus size={18} className="text-gray-500 group-hover:text-brand-blue transition-colors" />
           <span className="text-xs font-bold text-gray-500 group-hover:text-brand-blue transition-colors uppercase tracking-widest">Nova Categoria</span>
         </button>
@@ -122,7 +122,7 @@ const CategoriesView: React.FC = () => {
 
       {/* Insights de Categorias */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel technical-border p-8 rounded-2xl space-y-6">
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-6">
           <div className="flex items-center gap-3">
             <PieChart className="text-brand-blue" size={20} />
             <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Gastos</h3>
@@ -132,7 +132,7 @@ const CategoriesView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-8 rounded-2xl space-y-6">
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-6">
           <div className="flex items-center gap-3">
             <TrendingDown className="text-brand-red" size={20} />
             <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Maiores Ofensores</h3>
@@ -143,7 +143,7 @@ const CategoriesView: React.FC = () => {
               { name: 'Aluguel', val: 'R$ 2.500,00', perc: '60%' },
               { name: 'Combustível', val: 'R$ 420,00', perc: '12%' },
             ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-brand-red" />
                   <p className="text-xs font-bold text-white">{item.name}</p>

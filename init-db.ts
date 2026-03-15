@@ -35,15 +35,50 @@ async function init() {
       await db.schema.createTable('transactions', table => {
         table.increments('id').primary();
         table.integer('account_id').unsigned().references('id').inTable('accounts');
-        table.enum('type', ['income', 'expense']).notNullable();
+        table.string('type').notNullable(); // income, expense, transfer
         table.string('category').notNullable();
         table.decimal('amount', 15, 2).notNullable();
         table.date('date').notNullable();
         table.string('description');
         table.string('status').defaultTo('confirmed');
+        table.integer('destination_account_id').unsigned().references('id').inTable('accounts'); // Para transferências
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [transactions] criada.');
+    }
+
+    // Tabela de Cartões
+    if (!await db.schema.hasTable('cards')) {
+      await db.schema.createTable('cards', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.integer('account_id').unsigned().references('id').inTable('accounts');
+        table.string('name').notNullable();
+        table.string('brand').notNullable();
+        table.decimal('limit', 15, 2).defaultTo(0);
+        table.decimal('current_bill', 15, 2).defaultTo(0);
+        table.integer('closing_day').notNullable();
+        table.integer('due_day').notNullable();
+        table.string('color').defaultTo('#2CC7FF');
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [cards] criada.');
+    }
+
+    // Tabela de Metas
+    if (!await db.schema.hasTable('goals')) {
+      await db.schema.createTable('goals', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.string('name').notNullable();
+        table.decimal('target_amount', 15, 2).notNullable();
+        table.decimal('current_amount', 15, 2).defaultTo(0);
+        table.date('deadline');
+        table.string('icon').defaultTo('Target');
+        table.string('color').defaultTo('#2CC7FF');
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [goals] criada.');
     }
 
     // Tabela de Módulos (Marketplace)
@@ -79,8 +114,10 @@ async function init() {
     
     const usersCount = await db('users').count('id as count').first();
     if (usersCount?.count === 0) {
-      await db('users').insert({ name: 'Dime de Britto', email: 'dimedebritto@gmail.com', password: 'hash' });
-      console.log('🌱 Seed: Usuário padrão criado.');
+      const bcrypt = (await import('bcryptjs')).default;
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      await db('users').insert({ name: 'Dime de Britto', email: 'dimedebritto@gmail.com', password: hashedPassword });
+      console.log('🌱 Seed: Usuário padrão criado (Senha: 123456).');
     }
 
     const accountsCount = await db('accounts').count('id as count').first();

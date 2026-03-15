@@ -27,17 +27,20 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 
 ### 5. Usabilidade
 - **Tooltips Informativos:** Explicações detalhadas para cada KPI na barra superior e barra lateral ao passar o mouse.
-- **Responsividade Total:** Interface adaptável para dispositivos móveis, tablets e desktops, com menu lateral retrátil e empilhamento inteligente de painéis.
+- **Responsividade Total:** Interface adaptável para dispositivos móveis, tablets e desktops, com menus laterais retráteis em ambos os lados e empilhamento inteligente de painéis.
 - **Visualização de Dados:** Gráficos interativos de fluxo de gastos utilizando Recharts.
 - **SEO Profissional:** Estrutura semântica HTML5, meta tags otimizadas e dados estruturados JSON-LD.
 - **Sistema de Modais:** Interface de entrada rápida para receitas e despesas com validação visual.
 - **Lista de Transações:** Visualização detalhada das movimentações recentes com filtros rápidos.
 - **Refinamento de Usabilidade:** Tooltips corrigidos para evitar clipping, contraste de cores aprimorado para legibilidade técnica e targets de interação otimizados.
+- **Controle de Layout:** Botões dedicados na barra superior para ocultar/mostrar as barras laterais esquerda e direita, permitindo foco total nos dados centrais.
+- **Header Inteligente:** Telemetria responsiva que oculta rótulos de texto em telas menores para evitar sobreposição e garantir clareza visual.
 - **Console Modular:** Implementação completa das visões de Movimentações, Contas, Cartões, Metas, Categorias e Relatórios Inteligentes.
 - **Marketplace de Módulos:** Sistema de descoberta e ativação de extensões premium (Investimentos, etc).
 - **Estabilidade Técnica:** Implementação de Error Boundaries e tratamento de falhas de API para garantir resiliência do sistema.
-- **Integração Full-Stack:** Backend Express configurado com Knex.js para persistência em banco de dados SQL, permitindo sincronização real de transações e contas.
-- **Persistência de Dados:** Implementação de rotas de API para CRUD de transações, gestão de contas e catálogo de módulos.
+- **Integração Full-Stack:** Backend Express configurado com Knex.js para persistência em banco de dados SQL, permitindo sincronização real de transações, contas, cartões e metas.
+- **Persistência de Dados:** Implementação de rotas de API para CRUD de transações, gestão de contas, cartões, metas e catálogo de módulos.
+- **Telemetria Avançada:** Cálculo dinâmico de Gasto Médio Diário e Autonomia Financeira baseado no histórico real de transações dos últimos 30 dias.
 - **Inicialização Automatizada:** Script de estruturação de banco de dados (`init-db`) para criação de tabelas e sementes iniciais.
 
 ## Requisitos de Design (UI/UX)
@@ -83,3 +86,32 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 4. **accounts**: id, user_id, name, type, balance, color, created_at.
 3. **transactions**: id, user_id, account_id, type (income, expense, transfer), category, amount, date, status (pending, confirmed), description, created_at.
 4. **goals**: id, user_id, name, target_amount, current_amount, deadline, created_at.
+
+## Guia de Migração (MySQL/Hostinger)
+
+Para mover o projeto para o seu servidor Hostinger, siga estes passos:
+
+1. **Configuração do Banco de Dados:**
+   - Crie um banco de dados MySQL no painel da Hostinger.
+   - Anote o Host (geralmente `localhost`), Nome do Banco, Usuário e Senha.
+
+2. **Variáveis de Ambiente:**
+   - No seu ambiente de deploy (ou arquivo `.env`), configure:
+     ```env
+     DB_HOST=seu_host_hostinger
+     DB_USER=seu_usuario
+     DB_PASS=sua_senha
+     DB_NAME=seu_banco
+     JWT_SECRET=sua_chave_secreta
+     ```
+
+3. **Inicialização das Tabelas:**
+   - O projeto possui um script automatizado que cria todas as tabelas e sementes iniciais.
+   - Execute o comando: `npm run init-db`
+   - Este comando lerá as configurações do seu `.env` e estruturará o banco MySQL automaticamente.
+
+4. **SSL (Segurança):**
+   - Em ambientes de produção, o sistema está configurado para usar SSL (`rejectUnauthorized: false`) para garantir a criptografia dos dados em trânsito.
+
+5. **Modo de Preview (Sandbox):**
+   - Para facilitar testes locais ou em ambientes de preview sem MySQL, o sistema utiliza automaticamente **SQLite** (`data.sqlite`) se as variáveis `DB_HOST` não forem detectadas.

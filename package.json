@@ -9,15 +9,20 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "init-db": "tsx init-db.ts"
+    "init-db": "tsx init-db.ts",
+    "export-sql": "tsx export-sql.ts",
+    "gen-secret": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3",
     "knex": "^3.1.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -28,7 +33,9 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",

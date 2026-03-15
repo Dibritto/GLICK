@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Tooltip from './Tooltip';
-import { X } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'core' },
@@ -45,6 +46,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeView = 'dashboard',
   onViewChange
 }) => {
+  const { user, logout } = useAuth();
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col border-r border-brand-lead/30 h-full bg-brand-graphite shadow-2xl lg:shadow-none relative overflow-hidden">
       {/* Efeito de brilho sutil no topo */}
@@ -133,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       <div className="px-4 py-6 mt-auto space-y-4 relative z-10 bg-gradient-to-t from-brand-graphite via-brand-graphite to-transparent">
         <div className="space-y-2">
-          <div className="p-3 rounded-xl bg-brand-gray-deep/40 border border-brand-lead/20 backdrop-blur-md group hover:border-brand-green/30 transition-colors">
+          <div className="p-3 rounded-lg bg-brand-gray-deep/40 border border-brand-lead/20 backdrop-blur-md group hover:border-brand-green/30 transition-colors">
             <div className="flex justify-between items-start mb-1">
               <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">Saldo Consolidado</p>
               <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
@@ -148,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-brand-gray-deep/40 border border-brand-lead/20 backdrop-blur-md group hover:border-brand-red/30 transition-colors">
+          <div className="p-3 rounded-lg bg-brand-gray-deep/40 border border-brand-lead/20 backdrop-blur-md group hover:border-brand-red/30 transition-colors">
             <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Burn Rate Semanal</p>
             <div className="flex items-baseline gap-2">
               <p className="text-base font-mono font-bold text-white tracking-tighter">R$ 420,00</p>
@@ -159,13 +171,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="flex items-center gap-3 px-2 py-1">
           <div className="w-8 h-8 rounded-full bg-brand-blue/20 border border-brand-blue/30 flex items-center justify-center text-brand-blue font-bold text-xs">
-            DB
+            {user ? getInitials(user.name) : '--'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold text-white truncate">Dime de Britto</p>
+            <p className="text-[10px] font-bold text-white truncate">{user?.name || 'Usuário'}</p>
             <p className="text-[9px] text-gray-500 truncate">Plano Enterprise</p>
           </div>
-          <Settings size={14} className="text-gray-500 hover:text-white cursor-pointer transition-colors" />
+          <button 
+            onClick={logout}
+            className="p-1.5 text-gray-500 hover:text-brand-red transition-colors"
+            title="Sair do Console"
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </div>
     </aside>

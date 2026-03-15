@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
 
 interface Movement {
   id: string;
@@ -36,15 +37,19 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   title = 'Registro de Movimentações',
   onAddTransaction
 }) => {
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>(initialTypeFilter);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchTransactions = async () => {
+    if (!token) return;
     try {
       setIsLoading(true);
-      const res = await fetch('/api/transactions');
+      const res = await fetch('/api/transactions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         const data = await res.json();
         setMovements(data);

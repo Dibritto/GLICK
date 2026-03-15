@@ -6,10 +6,14 @@ import RightPanel from './components/RightPanel';
 import QuickActions from './components/QuickActions';
 import TransactionModal from './components/TransactionModal';
 import ErrorBoundary from './components/ErrorBoundary';
-import { Menu } from 'lucide-react';
+import AuthView from './components/AuthView';
+import { useAuth } from './context/AuthContext';
+import { Menu, Loader2 } from 'lucide-react';
 
 export default function App() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user, token, isLoading: isAuthLoading } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('expense');
@@ -23,14 +27,18 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (!token) return;
+
     const fetchData = async () => {
       try {
+        const headers = { 'Authorization': `Bearer ${token}` };
+
         // Buscar Sumário
-        const summaryRes = await fetch('/api/summary');
+        const summaryRes = await fetch('/api/summary', { headers });
         if (summaryRes.ok) setSummary(await summaryRes.json());
 
         // Buscar Módulos Instalados
-        const modulesRes = await fetch('/api/user/modules');
+        const modulesRes = await fetch('/api/user/modules', { headers });
         if (modulesRes.ok) {
           const modules = await modulesRes.json();
           if (Array.isArray(modules)) {
@@ -47,7 +55,22 @@ export default function App() {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-brand-graphite flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 size={40} className="text-brand-blue animate-spin" />
+          <p className="text-xs text-gray-500 uppercase tracking-[0.3em] font-bold">Iniciando Console...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthView />;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full bg-brand-graphite overflow-hidden selection:bg-brand-blue/30 selection:text-brand-blue">
@@ -61,24 +84,26 @@ export default function App() {
 
       {/* Coluna Esquerda: Navegação e KPIs */}
       <div className={`
-        fixed inset-y-0 left-0 z-[60] lg:z-40 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-0 z-[60] lg:z-40 transform transition-transform duration-300 ease-in-out lg:relative
+        ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-0'}
       `}>
-        <Sidebar 
-          onClose={() => setIsSidebarOpen(false)} 
-          installedModules={installedModules}
-          activeView={activeView}
-          onViewChange={(view) => {
-            setActiveView(view);
-            setIsSidebarOpen(false);
-          }}
-        />
+        <div className={`h-full w-64 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'lg:opacity-0 pointer-events-none'}`}>
+          <Sidebar 
+            onClose={() => setIsSidebarOpen(false)} 
+            installedModules={installedModules}
+            activeView={activeView}
+            onViewChange={(view) => {
+              setActiveView(view);
+              if (window.innerWidth < 1024) setIsSidebarOpen(false);
+            }}
+          />
+        </div>
       </div>
 
       {/* Área Principal (Centro + Direita) */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-visible">
         {/* Barra Superior: Telemetria + Mobile Menu Toggle */}
-        <div className="flex items-center bg-brand-graphite border-b border-brand-blue/30 relative z-50 overflow-visible">
+        <div className="flex items-center bg-brand-graphite relative z-50 overflow-visible">
           <button 
             onClick={() => setIsSidebarOpen(true)}
             className="lg:hidden p-3 text-brand-blue hover:bg-brand-blue/10 transition-colors"
@@ -86,7 +111,13 @@ export default function App() {
             <Menu size={20} />
           </button>
           <div className="flex-1 min-w-0 overflow-visible">
-            <TopBar data={summary} />
+            <TopBar 
+              data={summary} 
+              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              isSidebarOpen={isSidebarOpen}
+              onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+              isRightPanelOpen={isRightPanelOpen}
+            />
           </div>
         </div>
 
@@ -105,10 +136,12 @@ export default function App() {
             </ErrorBoundary>
           </div>
 
-          {/* Coluna Direita: Compromissos e Metas (Escondida em mobile ou empilhada se necessário) */}
-          <div className="hidden xl:block">
-            <RightPanel />
-          </div>
+          {/* Coluna Direita: Compromissos e Metas */}
+          {isRightPanelOpen && (
+            <div className="hidden xl:block">
+              <RightPanel />
+            </div>
+          )}
         </div>
       </div>
 

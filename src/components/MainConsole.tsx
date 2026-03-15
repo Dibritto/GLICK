@@ -1,5 +1,5 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   AreaChart, 
@@ -10,6 +10,7 @@ import {
   Tooltip as RechartsTooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 import ModuleMarketplace from './ModuleMarketplace';
 import MovementsView from './MovementsView';
 import AccountsView from './AccountsView';
@@ -19,15 +20,21 @@ import CategoriesView from './CategoriesView';
 import ReportsView from './ReportsView';
 import InvestmentsView from './InvestmentsView';
 
-const chartData = [
-  { name: '01/03', gastos: 120 },
-  { name: '05/03', gastos: 450 },
-  { name: '10/03', gastos: 300 },
-  { name: '15/03', gastos: 900 },
-  { name: '20/03', gastos: 200 },
-  { name: '25/03', gastos: 600 },
-  { name: '30/03', gastos: 400 },
-];
+interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  account_name: string;
+  amount: number;
+  type: 'income' | 'expense';
+  status: 'confirmed' | 'pending';
+}
+
+interface Account {
+  id: string;
+  balance: number;
+}
 
 interface MainConsoleProps {
   activeView?: string;
@@ -38,45 +45,57 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   activeView = 'dashboard',
   onOpenTransactionModal
 }) => {
-  if (activeView === 'marketplace') {
-    return <ModuleMarketplace />;
-  }
+  const { token } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (activeView === 'movimentacoes') {
-    return <MovementsView onAddTransaction={() => onOpenTransactionModal()} />;
-  }
+  const fetchData = async () => {
+    if (!token) return;
+    try {
+      setIsLoading(true);
+      const [transRes, accRes, goalsRes] = await Promise.all([
+        fetch('/api/transactions', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/accounts', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/goals', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
 
-  if (activeView === 'receitas') {
-    return <MovementsView typeFilter="in" title="Gestão de Receitas" onAddTransaction={() => onOpenTransactionModal('income')} />;
-  }
+      if (transRes.ok) {
+        const data = await transRes.json();
+        setTransactions(data);
+      }
 
-  if (activeView === 'despesas') {
-    return <MovementsView typeFilter="out" title="Gestão de Despesas" onAddTransaction={() => onOpenTransactionModal('expense')} />;
-  }
+      if (accRes.ok) {
+        const data = await accRes.json();
+        setAccounts(data);
+      }
 
-  if (activeView === 'contas') {
-    return <AccountsView />;
-  }
+      if (goalsRes.ok) {
+        const data = await goalsRes.json();
+        setGoals(data);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados do dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  if (activeView === 'cartoes') {
-    return <CardsView />;
-  }
+  useEffect(() => {
+    fetchData();
+  }, [token]);
 
-  if (activeView === 'metas') {
-    return <GoalsView />;
-  }
-
-  if (activeView === 'categorias') {
-    return <CategoriesView />;
-  }
-
-  if (activeView === 'relatorios') {
-    return <ReportsView />;
-  }
-
-  if (activeView === 'investimentos') {
-    return <InvestmentsView />;
-  }
+  if (activeView === 'marketplace') return <ModuleMarketplace />;
+  if (activeView === 'movimentacoes') return <MovementsView onAddTransaction={() => onOpenTransactionModal()} />;
+  if (activeView === 'receitas') return <MovementsView typeFilter="income" title="Gestão de Receitas" onAddTransaction={() => onOpenTransactionModal('income')} />;
+  if (activeView === 'despesas') return <MovementsView typeFilter="expense" title="Gestão de Despesas" onAddTransaction={() => onOpenTransactionModal('expense')} />;
+  if (activeView === 'contas') return <AccountsView />;
+  if (activeView === 'cartoes') return <CardsView />;
+  if (activeView === 'metas') return <GoalsView />;
+  if (activeView === 'categorias') return <CategoriesView />;
+  if (activeView === 'relatorios') return <ReportsView />;
+  if (activeView === 'investimentos') return <InvestmentsView />;
 
   if (activeView !== 'dashboard') {
     return (
@@ -98,6 +117,43 @@ const MainConsole: React.FC<MainConsoleProps> = ({
     );
   }
 
+  const currentBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+  const reservedBalance = goals.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
+  const confirmedTransactions = transactions.filter(t => t.status === 'confirmed');
+  const pendingTransactions = transactions.filter(t => t.status === 'pending');
+  
+  const predictedIncome = pendingTransactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
+    
+  const predictedExpense = pendingTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+  const finalPredictedBalance = currentBalance + predictedIncome - predictedExpense;
+
+  // Cálculo de Gasto Médio Diário (últimos 30 dias)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const last30DaysExpenses = confirmedTransactions
+    .filter(t => t.type === 'expense' && new Date(t.date) >= thirtyDaysAgo)
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
+  
+  const dailyAverageSpending = last30DaysExpenses / 30;
+  const financialAutonomy = dailyAverageSpending > 0 ? Math.floor(currentBalance / dailyAverageSpending) : 0;
+
+  // Mock chart data based on transactions
+  const chartData = [
+    { name: '01/03', gastos: 120 },
+    { name: '05/03', gastos: 450 },
+    { name: '10/03', gastos: 300 },
+    { name: '15/03', gastos: 900 },
+    { name: '20/03', gastos: 200 },
+    { name: '25/03', gastos: 600 },
+    { name: '30/03', gastos: 400 },
+  ];
+
   return (
     <main className="flex-1 p-4 md:p-8 space-y-8">
       {/* PAINEL 1 — SALDO PROJETADO */}
@@ -107,40 +163,40 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Console de Projeção Financeira</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="glass-panel technical-border p-5 rounded-xl glow-blue-hover transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Saldo Atual</p>
-            <p className="text-2xl font-mono font-bold text-white">R$ 3.650,50</p>
+            <p className="text-2xl font-mono font-bold text-white">R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green">
               <TrendingUp size={12} />
-              <span>Disponível em 3 contas</span>
+              <span>Disponível em {accounts.length} contas</span>
             </div>
           </div>
 
           <div className="glass-panel technical-border p-5 rounded-xl glow-blue-hover transition-all">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Receitas Previstas</p>
-            <p className="text-2xl font-mono font-bold text-brand-green">R$ 1.200,00</p>
+            <p className="text-2xl font-mono font-bold text-brand-green">R$ {predictedIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <Clock size={12} />
-              <span>Próximos 15 dias</span>
+              <span>Lançamentos pendentes</span>
             </div>
           </div>
 
           <div className="glass-panel technical-border p-5 rounded-xl glow-blue-hover transition-all">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Despesas Previstas</p>
-            <p className="text-2xl font-mono font-bold text-brand-red">R$ 2.550,00</p>
+            <p className="text-2xl font-mono font-bold text-brand-red">R$ {predictedExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <TrendingDown size={12} />
               <span>Contas e faturas</span>
             </div>
           </div>
 
-          <div className="bg-brand-blue/10 border border-brand-blue/30 p-5 rounded-xl glow-blue">
+          <div className="bg-brand-blue/10 border border-brand-blue/30 p-6 rounded-lg glow-blue">
             <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2">Saldo Final Previsto</p>
-            <p className="text-2xl font-mono font-bold text-brand-blue">R$ 2.300,50</p>
+            <p className="text-2xl font-mono font-bold text-brand-blue">R$ {finalPredictedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-blue/70">
               <ShieldCheck size={12} />
-              <span>Margem de segurança: R$ 500</span>
+              <span>Projeção de liquidez</span>
             </div>
           </div>
         </div>
@@ -153,7 +209,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <BarChart3 size={18} className="text-brand-blue" />
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Fluxo de Gastos Mensal</h2>
           </div>
-          <div className="glass-panel technical-border p-6 rounded-xl h-[300px]">
+          <div className="glass-panel technical-border p-6 rounded-lg h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -199,17 +255,21 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Liquidez</h2>
           </div>
 
-          <div className="glass-panel technical-border p-6 rounded-xl space-y-6 h-[300px] flex flex-col justify-center">
+          <div className="glass-panel technical-border p-6 rounded-lg space-y-6 h-[300px] flex flex-col justify-center">
             <div className="space-y-2">
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-xs font-bold text-gray-200">Dinheiro Comprometido</p>
                   <p className="text-[10px] text-gray-500">Contas fixas e faturas já fechadas</p>
                 </div>
-                <p className="text-sm font-mono font-bold text-brand-red">R$ 1.800,00</p>
+                <p className="text-sm font-mono font-bold text-brand-red">R$ {predictedExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
               <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: '50%' }} className="h-full bg-brand-red" />
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.min(100, (predictedExpense / currentBalance) * 100)}%` }} 
+                  className="h-full bg-brand-red" 
+                />
               </div>
             </div>
 
@@ -219,10 +279,14 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                   <p className="text-xs font-bold text-gray-200">Dinheiro Reservado</p>
                   <p className="text-[10px] text-gray-500">Metas e fundo de emergência</p>
                 </div>
-                <p className="text-sm font-mono font-bold text-brand-orange">R$ 1.000,00</p>
+                <p className="text-sm font-mono font-bold text-brand-orange">R$ {reservedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
               <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: '28%' }} className="h-full bg-brand-orange" />
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.min(100, (reservedBalance / currentBalance) * 100)}%` }} 
+                  className="h-full bg-brand-orange" 
+                />
               </div>
             </div>
 
@@ -232,10 +296,14 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                   <p className="text-xs font-bold text-gray-200">Dinheiro Livre</p>
                   <p className="text-[10px] text-gray-500">Disponível para gastos discricionários</p>
                 </div>
-                <p className="text-sm font-mono font-bold text-brand-green">R$ 850,50</p>
+                <p className="text-sm font-mono font-bold text-brand-green">R$ {Math.max(0, currentBalance - predictedExpense - reservedBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
               <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: '22%' }} className="h-full bg-brand-green" />
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: `${Math.max(0, 100 - ((predictedExpense + reservedBalance) / currentBalance) * 100)}%` }} 
+                  className="h-full bg-brand-green" 
+                />
               </div>
             </div>
           </div>
@@ -252,7 +320,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline">Ver Tudo</button>
         </div>
 
-        <div className="glass-panel technical-border rounded-xl overflow-hidden overflow-x-auto no-scrollbar">
+        <div className="glass-panel technical-border rounded-lg overflow-hidden overflow-x-auto no-scrollbar">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-brand-lead/20 border-b border-brand-lead/30">
@@ -264,21 +332,24 @@ const MainConsole: React.FC<MainConsoleProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-lead/20">
-              {[
-                { date: '14 Mar', desc: 'Posto Shell', cat: 'Transporte', acc: 'Itaú', val: '- R$ 85,50', type: 'out' },
-                { date: '12 Mar', desc: 'Supermercado', cat: 'Alimentação', acc: 'Nubank', val: '- R$ 150,00', type: 'out' },
-                { date: '10 Mar', desc: 'Aluguel', cat: 'Moradia', acc: 'Nubank', val: '- R$ 1.200,00', type: 'out' },
-                { date: '05 Mar', desc: 'Salário Mensal', cat: 'Renda', acc: 'Nubank', val: '+ R$ 5.000,00', type: 'in' },
-              ].map((t, i) => (
-                <tr key={i} className="hover:bg-brand-lead/10 transition-colors group cursor-pointer">
-                  <td className="px-6 py-4 text-xs font-mono text-gray-400">{t.date}</td>
-                  <td className="px-6 py-4 text-xs font-bold text-gray-200">{t.desc}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-0.5 rounded bg-brand-lead/30 text-[10px] text-gray-400">{t.cat}</span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center">
+                    <Loader2 size={24} className="text-brand-blue animate-spin mx-auto" />
                   </td>
-                  <td className="px-6 py-4 text-xs text-gray-500">{t.acc}</td>
-                  <td className={`px-6 py-4 text-xs font-mono font-bold text-right ${t.type === 'in' ? 'text-brand-green' : 'text-brand-red'}`}>
-                    {t.val}
+                </tr>
+              ) : confirmedTransactions.slice(0, 5).map((t) => (
+                <tr key={t.id} className="hover:bg-brand-lead/10 transition-colors group cursor-pointer">
+                  <td className="px-6 py-4 text-xs font-mono text-gray-400">
+                    {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </td>
+                  <td className="px-6 py-4 text-xs font-bold text-gray-200">{t.description}</td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-0.5 rounded bg-brand-lead/30 text-[10px] text-gray-400">{t.category}</span>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-500">{t.account_name}</td>
+                  <td className={`px-6 py-4 text-xs font-mono font-bold text-right ${t.type === 'income' ? 'text-brand-green' : 'text-brand-red'}`}>
+                    {t.type === 'income' ? '+' : '-'} R$ {Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               ))}
@@ -296,7 +367,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Gasto Médio Diário</p>
-            <p className="text-3xl font-mono font-bold text-white">R$ 95,00</p>
+            <p className="text-3xl font-mono font-bold text-white">R$ {dailyAverageSpending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             <p className="text-[10px] text-brand-blue mt-1">Calculado nos últimos 30 dias</p>
           </div>
         </div>
@@ -307,8 +378,8 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Autonomia Financeira</p>
-            <p className="text-3xl font-mono font-bold text-brand-green">18 Dias</p>
-            <p className="text-[10px] text-gray-400 mt-1">Seu dinheiro dura até 02/04</p>
+            <p className="text-3xl font-mono font-bold text-brand-green">{financialAutonomy} Dias</p>
+            <p className="text-[10px] text-gray-400 mt-1">Baseado no saldo atual e gasto médio</p>
           </div>
         </div>
       </section>
