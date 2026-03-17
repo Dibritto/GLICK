@@ -18,18 +18,22 @@ interface FinanceContextType {
   deleteTransaction: (id: string) => Promise<void>;
   
   // Accounts
+  createAccount: (data: any) => Promise<void>;
   updateAccount: (id: number, data: any) => Promise<void>;
   deleteAccount: (id: number) => Promise<void>;
   
   // Goals
+  createGoal: (data: any) => Promise<void>;
   updateGoal: (id: number, data: any) => Promise<void>;
   deleteGoal: (id: number) => Promise<void>;
   
   // Cards
+  createCard: (data: any) => Promise<void>;
   updateCard: (id: number, data: any) => Promise<void>;
   deleteCard: (id: number) => Promise<void>;
   
   // Categories
+  createCategory: (data: any) => Promise<void>;
   updateCategory: (id: number, data: any) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
 }
@@ -70,11 +74,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [token]);
 
+  // Função para forçar a data a ser interpretada localmente, ignorando o fuso horário
+  const getLocalDate = (dateString: string) => {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   // Cálculos Centralizados (Elimina redundância de API e lógica)
   const derivedData = useMemo(() => {
+    // Calcular progresso das metas dinamicamente
+    const goalsWithDynamicAmount = goals.map(goal => {
+      const goalTransactions = transactions.filter(t => t.goal_id === goal.id);
+      const currentAmount = goalTransactions.reduce((acc, curr) => {
+        if (curr.type === 'expense') return acc + Number(curr.amount); // Aporte na meta
+        if (curr.type === 'income') return acc - Number(curr.amount); // Retirada da meta
+        return acc;
+      }, 0);
+      return { ...goal, current_amount: currentAmount };
+    });
+
     const totalBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
-    const reservedBalance = goals.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
-    const freeCapital = totalBalance - reservedBalance;
+    const reservedBalance = goalsWithDynamicAmount.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
+    const freeCapital = totalBalance; // O dinheiro já saiu da conta, então totalBalance já é o capital livre
     
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -86,7 +107,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // Transações do mês atual
     const monthlyTransactions = transactions.filter(t => {
-      const d = new Date(t.date);
+      const d = getLocalDate(t.date);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
 
@@ -99,24 +120,34 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let predictedExpense = 0;
     const projectedTransactions: Transaction[] = [];
 
-    // Pegar transações recorrentes únicas (por descrição e categoria)
+    // Pegar transações recorrentes únicas (por descrição, categoria e valor aproximado)
     const recurringTemplates = transactions.filter(t => t.recurrence && t.recurrence !== 'none');
-    const uniqueTemplates = Array.from(new Map(recurringTemplates.map(t => [`${t.description}-${t.category}`, t])).values()) as Transaction[];
+    
+    // Agrupar por uma chave mais robusta para evitar fusão indevida
+    const uniqueTemplates = Array.from(new Map(
+      recurringTemplates.map(t => [`${t.description}-${t.category}-${t.amount}`, t])
+    ).values()) as Transaction[];
 
     uniqueTemplates.forEach(template => {
+      // Verifica se já ocorreu neste mês com base na descrição, categoria e valor
       const alreadyHappened = monthlyTransactions.some(t => 
-        t.description === template.description && t.category === template.category
+        t.description === template.description && 
+        t.category === template.category &&
+        Math.abs(Number(t.amount) - Number(template.amount)) < 1 // Tolerância de 1 real
       );
 
       if (!alreadyHappened) {
         if (template.type === 'income') predictedIncome += Number(template.amount);
         if (template.type === 'expense') predictedExpense += Number(template.amount);
         
+        const templateDate = getLocalDate(template.date);
+        const projectedDate = new Date(currentYear, currentMonth, templateDate.getDate());
+        
         projectedTransactions.push({
           ...template,
           id: `projected-${template.id}`,
           status: 'pending',
-          date: new Date(currentYear, currentMonth, new Date(template.date).getDate()).toISOString().split('T')[0]
+          date: projectedDate.toISOString().split('T')[0]
         });
       }
     });
@@ -135,9 +166,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Telemetria de longo prazo (últimos 30 dias)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
     
     const last30DaysExpenses = transactions
-      .filter(t => t.type === 'expense' && t.status === 'confirmed' && new Date(t.date) >= thirtyDaysAgo)
+      .filter(t => t.type === 'expense' && t.status === 'confirmed' && getLocalDate(t.date) >= thirtyDaysAgo)
       .reduce((acc, curr) => acc + Number(curr.amount), 0);
     
     const dailyAverageSpending = last30DaysExpenses / 30;
@@ -155,7 +187,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const label = monthNames[m];
       
       const monthTrans = transactions.filter(t => {
-        const td = new Date(t.date);
+        const td = getLocalDate(t.date);
         return td.getMonth() === m && td.getFullYear() === y;
       });
 
@@ -180,9 +212,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       categoryMap[t.category].value += Number(t.amount);
     });
 
-    const totalCardLimit = cards.reduce((acc, curr) => acc + Number(curr.limit), 0);
-    const totalCardUsed = cards.reduce((acc, curr) => acc + Number(curr.current_bill || 0), 0);
-    const completedGoalsCount = goals.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length;
+    // Calcular faturas dos cartões dinamicamente
+    const cardsWithDynamicBill = cards.map(card => {
+      const cardTransactions = transactions.filter(t => t.card_id === card.id && t.type === 'expense');
+      const currentBill = cardTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
+      return { ...card, current_bill: currentBill };
+    });
+
+    const totalCardLimit = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.limit), 0);
+    const totalCardUsed = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.current_bill || 0), 0);
+    const completedGoalsCount = goalsWithDynamicAmount.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length;
 
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
     const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
@@ -211,9 +250,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalCardUsed,
       completedGoalsCount,
       totalIncome,
-      totalExpense
+      totalExpense,
+      cardsWithDynamicBill,
+      goalsWithDynamicAmount
     };
-  }, [accounts, transactions, categories, goals]);
+  }, [accounts, transactions, categories, goals, cards]);
 
   const apiAction = useCallback(async (url: string, method: string, body?: any) => {
     if (!token) return;
@@ -226,33 +267,109 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         },
         ...(body ? { body: JSON.stringify(body) } : {})
       });
-      if (res.ok) {
-        await refreshData();
-      } else {
+      if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || `Erro ao realizar operação ${method} em ${url}`);
       }
+      
+      // Retornar o resultado para atualizações otimistas ou uso imediato
+      return await res.json();
     } catch (error) {
       console.error(`Erro na operação ${method} em ${url}:`, error);
       throw error;
     }
-  }, [token, refreshData]);
+  }, [token]);
 
-  const deleteTransaction = (id: string) => apiAction(`/api/transactions/${id}`, 'DELETE');
-  const updateTransaction = (id: string, data: any) => apiAction(`/api/transactions/${id}`, 'PUT', data);
-  const createTransaction = (data: any) => apiAction('/api/transactions', 'POST', data);
+  // Debounced refreshData para evitar múltiplas chamadas simultâneas
+  const debouncedRefreshData = useCallback(() => {
+    let timeoutId: NodeJS.Timeout;
+    return () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        refreshData();
+      }, 300); // Aguarda 300ms após a última chamada
+    };
+  }, [refreshData])();
+
+  const deleteTransaction = async (id: string) => {
+    await apiAction(`/api/transactions/${id}`, 'DELETE');
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    debouncedRefreshData();
+  };
   
-  const updateAccount = (id: number, data: any) => apiAction(`/api/accounts/${id}`, 'PUT', data);
-  const deleteAccount = (id: number) => apiAction(`/api/accounts/${id}`, 'DELETE');
+  const updateTransaction = async (id: string, data: any) => {
+    await apiAction(`/api/transactions/${id}`, 'PUT', data);
+    debouncedRefreshData();
+  };
   
-  const updateGoal = (id: number, data: any) => apiAction(`/api/goals/${id}`, 'PUT', data);
-  const deleteGoal = (id: number) => apiAction(`/api/goals/${id}`, 'DELETE');
+  const createTransaction = async (data: any) => {
+    await apiAction('/api/transactions', 'POST', data);
+    debouncedRefreshData();
+  };
   
-  const updateCard = (id: number, data: any) => apiAction(`/api/cards/${id}`, 'PUT', data);
-  const deleteCard = (id: number) => apiAction(`/api/cards/${id}`, 'DELETE');
+  const createAccount = async (data: any) => {
+    await apiAction('/api/accounts', 'POST', data);
+    debouncedRefreshData();
+  };
   
-  const updateCategory = (id: number, data: any) => apiAction(`/api/categories/${id}`, 'PUT', data);
-  const deleteCategory = (id: number) => apiAction(`/api/categories/${id}`, 'DELETE');
+  const updateAccount = async (id: number, data: any) => {
+    await apiAction(`/api/accounts/${id}`, 'PUT', data);
+    debouncedRefreshData();
+  };
+  
+  const deleteAccount = async (id: number) => {
+    await apiAction(`/api/accounts/${id}`, 'DELETE');
+    setAccounts(prev => prev.filter(a => a.id !== id));
+    debouncedRefreshData();
+  };
+  
+  const createGoal = async (data: any) => {
+    await apiAction('/api/goals', 'POST', data);
+    debouncedRefreshData();
+  };
+  
+  const updateGoal = async (id: number, data: any) => {
+    await apiAction(`/api/goals/${id}`, 'PUT', data);
+    debouncedRefreshData();
+  };
+  
+  const deleteGoal = async (id: number) => {
+    await apiAction(`/api/goals/${id}`, 'DELETE');
+    setGoals(prev => prev.filter(g => g.id !== id));
+    debouncedRefreshData();
+  };
+  
+  const createCard = async (data: any) => {
+    await apiAction('/api/cards', 'POST', data);
+    debouncedRefreshData();
+  };
+  
+  const updateCard = async (id: number, data: any) => {
+    await apiAction(`/api/cards/${id}`, 'PUT', data);
+    debouncedRefreshData();
+  };
+  
+  const deleteCard = async (id: number) => {
+    await apiAction(`/api/cards/${id}`, 'DELETE');
+    setCards(prev => prev.filter(c => c.id !== id));
+    debouncedRefreshData();
+  };
+  
+  const createCategory = async (data: any) => {
+    await apiAction('/api/categories', 'POST', data);
+    debouncedRefreshData();
+  };
+  
+  const updateCategory = async (id: number, data: any) => {
+    await apiAction(`/api/categories/${id}`, 'PUT', data);
+    debouncedRefreshData();
+  };
+  
+  const deleteCategory = async (id: number) => {
+    await apiAction(`/api/categories/${id}`, 'DELETE');
+    setCategories(prev => prev.filter(c => c.id !== id));
+    debouncedRefreshData();
+  };
 
   useEffect(() => {
     if (token) {
@@ -279,12 +396,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createTransaction,
       updateTransaction,
       deleteTransaction,
+      createAccount,
       updateAccount,
       deleteAccount,
+      createGoal,
       updateGoal,
       deleteGoal,
+      createCard,
       updateCard,
       deleteCard,
+      createCategory,
       updateCategory,
       deleteCategory
     }}>

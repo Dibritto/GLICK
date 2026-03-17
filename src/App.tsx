@@ -36,6 +36,7 @@ export default function App() {
   const [editingCard, setEditingCard] = useState<any>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [prefilledGoal, setPrefilledGoal] = useState<any>(null);
 
   const handleEditAccount = (account: any) => {
     setEditingAccount(account);
@@ -167,10 +168,11 @@ export default function App() {
             <MainConsole 
               activeView={activeView} 
               installedModules={installedModules}
-              onOpenTransactionModal={(type, lockType = false) => {
+              onOpenTransactionModal={(type, lockType = false, goal = null) => {
                 if (type) setTransactionModalType(type);
                 setIsTransactionTypeLocked(lockType);
                 setEditingTransaction(null);
+                setPrefilledGoal(goal);
                 setIsTransactionModalOpen(true);
               }}
               onEditTransaction={handleEditTransaction}
@@ -227,10 +229,12 @@ export default function App() {
           setIsTransactionModalOpen(false);
           setEditingTransaction(null);
           setIsTransactionTypeLocked(false);
+          setPrefilledGoal(null);
         }}
         type={transactionModalType}
         lockType={isTransactionTypeLocked}
         editingTransaction={editingTransaction}
+        prefilledGoal={prefilledGoal}
       />
 
       <AccountModal 

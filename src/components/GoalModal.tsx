@@ -22,10 +22,9 @@ interface GoalModalProps {
 
 const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) => {
   const { token } = useAuth();
-  const { refreshData, updateGoal, deleteGoal } = useFinance();
+  const { createGoal, updateGoal, deleteGoal } = useFinance();
   const [name, setName] = useState(editingGoal?.name || '');
   const [targetAmount, setTargetAmount] = useState(editingGoal?.target_amount.toString() || '');
-  const [currentAmount, setCurrentAmount] = useState(editingGoal?.current_amount.toString() || '');
   const [deadline, setDeadline] = useState(editingGoal?.deadline || '');
   const [color, setColor] = useState(editingGoal?.color || '#00FF9F');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,13 +35,11 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
     if (editingGoal) {
       setName(editingGoal.name);
       setTargetAmount(editingGoal.target_amount.toString());
-      setCurrentAmount(editingGoal.current_amount.toString());
       setDeadline(editingGoal.deadline);
       setColor(editingGoal.color);
     } else {
       setName('');
       setTargetAmount('');
-      setCurrentAmount('');
       setDeadline('');
       setColor('#00FF9F');
     }
@@ -56,7 +53,6 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
       const data = {
         name,
         target_amount: Number(targetAmount),
-        current_amount: Number(currentAmount) || 0,
         deadline,
         color
       };
@@ -65,22 +61,8 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
         await updateGoal(editingGoal.id, data);
         toast.success('Meta atualizada com sucesso');
       } else {
-        const res = await fetch('/api/goals', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-          await refreshData();
-          toast.success('Meta estabelecida com sucesso');
-        } else {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Erro ao criar meta');
-        }
+        await createGoal(data);
+        toast.success('Meta estabelecida com sucesso');
       }
       onClose();
     } catch (error: any) {
@@ -158,36 +140,19 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Alvo</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-gray-600">R$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    placeholder="0,00"
-                    value={targetAmount}
-                    onChange={(e) => setTargetAmount(e.target.value)}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-10 pr-4 text-sm font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Já Acumulado</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-gray-600">R$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    placeholder="0,00"
-                    value={currentAmount}
-                    onChange={(e) => setCurrentAmount(e.target.value)}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-10 pr-4 text-sm font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                  />
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Alvo</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-gray-600">R$</span>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  required
+                  placeholder="0,00"
+                  value={targetAmount}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-10 pr-4 text-sm font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
+                />
               </div>
             </div>
           </div>

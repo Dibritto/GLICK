@@ -11,7 +11,8 @@ import {
   Check,
   Loader2,
   ArrowRightLeft,
-  Clock
+  Clock,
+  CreditCard
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,7 @@ interface TransactionModalProps {
   type?: 'income' | 'expense' | 'transfer';
   lockType?: boolean;
   editingTransaction?: any | null;
+  prefilledGoal?: any | null;
 }
 
 const TransactionModal: React.FC<TransactionModalProps> = ({ 
@@ -30,16 +32,19 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   onClose, 
   type: initialType = 'expense',
   lockType = false,
-  editingTransaction
+  editingTransaction,
+  prefilledGoal
 }) => {
   const { token } = useAuth();
-  const { accounts, refreshData, createTransaction, updateTransaction, deleteTransaction } = useFinance();
+  const { accounts, cards, goals, refreshData, createTransaction, updateTransaction, deleteTransaction } = useFinance();
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>(initialType);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [accountId, setAccountId] = useState('');
   const [destinationAccountId, setDestinationAccountId] = useState('');
+  const [cardId, setCardId] = useState('');
+  const [goalId, setGoalId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [recurrence, setRecurrence] = useState<'none' | 'monthly' | 'weekly' | 'yearly'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,6 +59,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setCategory(editingTransaction.category);
       setAccountId(editingTransaction.account_id.toString());
       setDestinationAccountId(editingTransaction.destination_account_id?.toString() || '');
+      setCardId(editingTransaction.card_id?.toString() || '');
+      setGoalId(editingTransaction.goal_id?.toString() || '');
       setDate(new Date(editingTransaction.date).toISOString().split('T')[0]);
       setRecurrence(editingTransaction.recurrence || 'none');
     } else {
@@ -63,10 +70,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setCategory(initialType === 'transfer' ? 'Transferência' : '');
       setAccountId('');
       setDestinationAccountId('');
+      setCardId('');
+      setGoalId(prefilledGoal ? prefilledGoal.id.toString() : '');
+      if (prefilledGoal) {
+        setCategory('Meta');
+        setDescription(initialType === 'income' ? `Resgate: ${prefilledGoal.name}` : `Aporte: ${prefilledGoal.name}`);
+      }
       setDate(new Date().toISOString().split('T')[0]);
       setRecurrence('none');
     }
-  }, [editingTransaction, initialType]);
+  }, [editingTransaction, initialType, prefilledGoal]);
 
   const handleDelete = async () => {
     if (!editingTransaction) return;
@@ -116,7 +129,9 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         date,
         description,
         status: 'confirmed',
-        recurrence
+        recurrence,
+        card_id: type === 'expense' && cardId ? Number(cardId) : null,
+        goal_id: (type === 'expense' || type === 'income') && goalId ? Number(goalId) : null
       };
 
       if (editingTransaction) {
@@ -278,7 +293,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   <Wallet size={12} /> {type === 'transfer' ? 'Conta Origem' : 'Conta'}
                 </label>
                 <select 
-                  required
+                  required={!cardId}
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
@@ -292,6 +307,52 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 </select>
               </div>
             </div>
+
+            {type === 'expense' && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
+                  <CreditCard size={12} /> Cartão de Crédito (Opcional)
+                </label>
+                <select 
+                  value={cardId}
+                  onChange={(e) => {
+                    setCardId(e.target.value);
+                    if (e.target.value) {
+                      const card = cards.find(c => c.id.toString() === e.target.value);
+                      if (card) setAccountId(card.account_id.toString());
+                    }
+                  }}
+                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
+                >
+                  <option value="" className="bg-brand-gray-deep">Nenhum (Débito na Conta)</option>
+                  {cards.map(card => (
+                    <option key={card.id} value={card.id} className="bg-brand-gray-deep">
+                      {card.name} ({card.brand})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(type === 'expense' || type === 'income') && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
+                  <Tag size={12} /> Meta (Opcional)
+                </label>
+                <select 
+                  value={goalId}
+                  onChange={(e) => setGoalId(e.target.value)}
+                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
+                >
+                  <option value="" className="bg-brand-gray-deep">Nenhuma</option>
+                  {goals.map(goal => (
+                    <option key={goal.id} value={goal.id} className="bg-brand-gray-deep">
+                      {goal.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">

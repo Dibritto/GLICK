@@ -1,59 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Calendar, Bell, Target, ChevronRight, AlertTriangle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useAuth } from '../context/AuthContext';
-
-interface Transaction {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  type: 'income' | 'expense';
-  status: 'confirmed' | 'pending';
-}
-
-interface Goal {
-  id: string;
-  name: string;
-  target_amount: number;
-  current_amount: number;
-  color: string;
-}
+import { useFinance } from '../context/FinanceContext';
 
 const RightPanel: React.FC = () => {
-  const { token } = useAuth();
-  const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchData = async () => {
-    if (!token) return;
-    try {
-      setIsLoading(true);
-      const [transRes, goalsRes] = await Promise.all([
-        fetch('/api/transactions', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/goals', { headers: { 'Authorization': `Bearer ${token}` } })
-      ]);
-
-      if (transRes.ok) {
-        const data = await transRes.json();
-        setPendingTransactions(data.filter((t: any) => t.status === 'pending').slice(0, 3));
-      }
-
-      if (goalsRes.ok) {
-        const data = await goalsRes.json();
-        setGoals(data.slice(0, 2));
-      }
-    } catch (error) {
-      console.error('Erro ao buscar dados do painel lateral:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [token]);
+  const { transactions, derivedData, isLoading } = useFinance();
+  const { goalsWithDynamicAmount: goals } = derivedData;
+  
+  const pendingTransactions = transactions.filter(t => t.status === 'pending').slice(0, 3);
+  const displayGoals = goals.slice(0, 2);
 
   return (
     <aside className="w-80 flex-shrink-0 border-l border-brand-lead/30 flex flex-col bg-brand-graphite overflow-y-auto no-scrollbar">
@@ -124,8 +79,8 @@ const RightPanel: React.FC = () => {
             <div className="flex justify-center py-4">
               <Loader2 size={16} className="text-brand-blue animate-spin" />
             </div>
-          ) : goals.length > 0 ? (
-            goals.map((goal) => {
+          ) : displayGoals.length > 0 ? (
+            displayGoals.map((goal) => {
               const progress = Math.round((Number(goal.current_amount) / Number(goal.target_amount)) * 100);
               return (
                 <div key={goal.id}>

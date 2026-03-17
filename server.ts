@@ -33,7 +33,9 @@ const transactionSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de data inválido (YYYY-MM-DD)'),
   description: z.string().min(1),
   status: z.enum(['confirmed', 'pending']).default('confirmed'),
-  recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly']).optional().default('none')
+  recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly']).optional().default('none'),
+  card_id: z.number().positive().optional().nullable(),
+  goal_id: z.number().positive().optional().nullable()
 });
 
 const accountSchema = z.object({
@@ -46,7 +48,7 @@ const accountSchema = z.object({
 const goalSchema = z.object({
   name: z.string().min(1),
   target_amount: z.number().positive(),
-  current_amount: z.number().min(0),
+  current_amount: z.number().min(0).optional().default(0),
   deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   color: z.string().regex(/^#[0-9A-F]{6}$/i)
 });
@@ -198,13 +200,23 @@ async function startServer() {
 
   // 3. Criar Transação
   app.post('/api/transactions', authenticateToken, validate(transactionSchema), async (req: AuthRequest, res) => {
-    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence } = req.body;
+    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence, card_id, goal_id } = req.body;
     const userId = req.user?.id;
     
     try {
       // Verificar se a conta pertence ao usuário
       const account = await db('accounts').where({ id: account_id, user_id: userId }).first();
       if (!account) return res.status(403).json({ error: 'Acesso negado à conta de origem' });
+
+      if (card_id) {
+        const card = await db('cards').where({ id: card_id, user_id: userId }).first();
+        if (!card) return res.status(403).json({ error: 'Acesso negado ao cartão' });
+      }
+      
+      if (goal_id) {
+        const goal = await db('goals').where({ id: goal_id, user_id: userId }).first();
+        if (!goal) return res.status(403).json({ error: 'Acesso negado à meta' });
+      }
 
       if (type === 'transfer') {
         if (!destination_account_id) return res.status(400).json({ error: 'Conta de destino necessária para transferência' });
@@ -232,13 +244,16 @@ async function startServer() {
       } else {
         await db.transaction(async (trx) => {
           await trx('transactions').insert({
-            account_id, type, category, amount, date, description, status: status || 'confirmed', recurrence: recurrence || 'none'
+            account_id, type, category, amount, date, description, status: status || 'confirmed', recurrence: recurrence || 'none', card_id: card_id || null, goal_id: goal_id || null
           });
 
-          const adjustment = type === 'income' ? amount : -amount;
-          await trx('accounts')
-            .where('id', account_id)
-            .increment('balance', adjustment);
+          // Se for gasto no cartão, não desconta da conta agora. A fatura será paga depois.
+          if (!card_id) {
+            const adjustment = type === 'income' ? amount : -amount;
+            await trx('accounts')
+              .where('id', account_id)
+              .increment('balance', adjustment);
+          }
         });
       }
 
@@ -251,11 +266,12 @@ async function startServer() {
 
   app.put('/api/transactions/:id', authenticateToken, validate(transactionSchema), async (req: AuthRequest, res) => {
     const { id } = req.params;
-    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence } = req.body;
+    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence, card_id, goal_id } = req.body;
     const userId = req.user?.id;
 
     try {
       const transaction = await db('transactions')
+        .select('transactions.*', 'accounts.user_id')
         .join('accounts', 'transactions.account_id', 'accounts.id')
         .where('transactions.id', id)
         .where('accounts.user_id', userId)
@@ -263,13 +279,25 @@ async function startServer() {
 
       if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
 
+      if (card_id) {
+        const card = await db('cards').where({ id: card_id, user_id: userId }).first();
+        if (!card) return res.status(403).json({ error: 'Acesso negado ao cartão' });
+      }
+      
+      if (goal_id) {
+        const goal = await db('goals').where({ id: goal_id, user_id: userId }).first();
+        if (!goal) return res.status(403).json({ error: 'Acesso negado à meta' });
+      }
+
       await db.transaction(async (trx) => {
-        // 1. Reverter saldo antigo
-        const oldAdjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
-        await trx('accounts').where('id', transaction.account_id).increment('balance', oldAdjustment);
-        
-        if (transaction.type === 'transfer' && transaction.destination_account_id) {
-          await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+        // 1. Reverter saldo antigo (apenas se não for cartão)
+        if (!transaction.card_id) {
+          const oldAdjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+          await trx('accounts').where('id', transaction.account_id).increment('balance', oldAdjustment);
+          
+          if (transaction.type === 'transfer' && transaction.destination_account_id) {
+            await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+          }
         }
 
         // 2. Aplicar novo saldo
@@ -283,14 +311,14 @@ async function startServer() {
 
           await trx('accounts').where('id', account_id).decrement('balance', amount);
           await trx('accounts').where('id', destination_account_id).increment('balance', amount);
-        } else {
+        } else if (!card_id) { // Só ajusta saldo se não for cartão
           const newAdjustment = type === 'income' ? amount : -amount;
           await trx('accounts').where('id', account_id).increment('balance', newAdjustment);
         }
 
         // 3. Atualizar registro
         await trx('transactions').where('id', id).update({
-          account_id, type, category, amount, date, description, status, destination_account_id, recurrence
+          account_id, type, category, amount, date, description, status, destination_account_id: destination_account_id || null, recurrence, card_id: card_id || null, goal_id: goal_id || null
         });
       });
 
@@ -518,11 +546,11 @@ async function startServer() {
         user_id: userId,
         name,
         target_amount,
-        current_amount,
+        current_amount: current_amount || 0,
         deadline,
         color
       });
-      res.status(201).json({ id, name, target_amount, current_amount, deadline, color });
+      res.status(201).json({ id, name, target_amount, current_amount: current_amount || 0, deadline, color });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao criar meta' });
     }
@@ -533,12 +561,17 @@ async function startServer() {
     const { name, target_amount, current_amount, deadline, color } = req.body;
     const userId = req.user?.id;
     try {
+      const updateData: any = { name, target_amount, deadline, color };
+      if (current_amount !== undefined) {
+        updateData.current_amount = current_amount;
+      }
+      
       const updated = await db('goals')
         .where({ id, user_id: userId })
-        .update({ name, target_amount, current_amount, deadline, color });
+        .update(updateData);
       
       if (!updated) return res.status(404).json({ error: 'Meta não encontrada' });
-      res.json({ id, name, target_amount, current_amount, deadline, color });
+      res.json({ id, ...updateData });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao atualizar meta' });
     }

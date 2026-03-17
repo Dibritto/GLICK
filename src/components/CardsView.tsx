@@ -22,8 +22,8 @@ interface CardsViewProps {
 }
 
 const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
-  const { cards, isLoading, derivedData } = useFinance();
-  const { totalCardLimit, totalCardUsed } = derivedData;
+  const { isLoading, derivedData } = useFinance();
+  const { totalCardLimit, totalCardUsed, cardsWithDynamicBill } = derivedData;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -56,7 +56,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
           </div>
         ) : (
           <>
-            {cards.map((card, i) => (
+            {cardsWithDynamicBill.map((card, i) => (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}

@@ -22,7 +22,7 @@ interface AccountModalProps {
 
 const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAccount }) => {
   const { token } = useAuth();
-  const { refreshData, updateAccount, deleteAccount } = useFinance();
+  const { createAccount, updateAccount, deleteAccount } = useFinance();
   const [name, setName] = useState(editingAccount?.name || '');
   const [type, setType] = useState(editingAccount?.type || 'checking');
   const [balance, setBalance] = useState(editingAccount?.balance.toString() || '');
@@ -61,22 +61,8 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
         await updateAccount(editingAccount.id, data);
         toast.success('Conta atualizada com sucesso');
       } else {
-        const res = await fetch('/api/accounts', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-          await refreshData();
-          toast.success('Conta criada com sucesso');
-        } else {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Erro ao criar conta');
-        }
+        await createAccount(data);
+        toast.success('Conta criada com sucesso');
       }
       onClose();
     } catch (error: any) {

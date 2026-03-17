@@ -19,11 +19,13 @@ import { Goal } from '../types';
 interface GoalsViewProps {
   onAddGoal?: () => void;
   onEditGoal?: (goal: Goal) => void;
+  onAddFunds?: (goal: Goal) => void;
+  onWithdrawFunds?: (goal: Goal) => void;
 }
 
-const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal }) => {
-  const { goals, isLoading, derivedData } = useFinance();
-  const { completedGoalsCount } = derivedData;
+const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds, onWithdrawFunds }) => {
+  const { isLoading, derivedData } = useFinance();
+  const { completedGoalsCount, goalsWithDynamicAmount: goals } = derivedData;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -117,9 +119,26 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal }) => {
                     <Calendar size={12} />
                     <span>Prazo: {goal.deadline ? new Date(goal.deadline).toLocaleDateString('pt-BR') : 'Sem prazo'}</span>
                   </div>
-                  <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1">
-                    Aportar Capital <ChevronRight size={12} />
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onWithdrawFunds?.(goal);
+                      }}
+                      className="text-[10px] uppercase font-bold text-brand-red hover:underline flex items-center gap-1"
+                    >
+                      Resgatar
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddFunds?.(goal);
+                      }}
+                      className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
+                    >
+                      Aportar Capital <ChevronRight size={12} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}

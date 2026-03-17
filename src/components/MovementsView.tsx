@@ -14,7 +14,8 @@ import {
   Loader2,
   Trash2,
   Clock,
-  Activity
+  Activity,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
@@ -210,6 +211,11 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                           )}
                           {m.id.startsWith('projected-') && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Projetado</span>
+                          )}
+                          {m.goal_id && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white font-bold uppercase tracking-tighter flex items-center gap-1">
+                              <Target size={10} /> Meta
+                            </span>
                           )}
                         </div>
                       </td>

@@ -27,7 +27,7 @@ import { Account, Goal, Card, Category } from '../types';
 interface MainConsoleProps {
   activeView?: string;
   installedModules?: string[];
-  onOpenTransactionModal: (type?: 'income' | 'expense', lockType?: boolean) => void;
+  onOpenTransactionModal: (type?: 'income' | 'expense', lockType?: boolean, goal?: Goal) => void;
   onOpenAccountModal: () => void;
   onEditAccount: (account: Account) => void;
   onOpenGoalModal: () => void;
@@ -71,7 +71,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   if (activeView === 'fluxo-caixa') return <MovementsView onAddTransaction={() => onOpenTransactionModal()} onEditTransaction={onEditTransaction} />;
   if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onEditAccount={onEditAccount} />;
   if (activeView === 'cartoes') return <CardsView onAddCard={onOpenCardModal} onEditCard={onEditCard} />;
-  if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} />;
+  if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenTransactionModal('expense', true, goal)} onWithdrawFunds={(goal) => onOpenTransactionModal('income', true, goal)} />;
   if (activeView === 'categorias') return <CategoriesView onAddCategory={onOpenCategoryModal} onEditCategory={onEditCategory} />;
   if (activeView === 'relatorios') return <ReportsView />;
   if (activeView === 'investimentos') return <InvestmentsView isInstalled={installedModules.includes('investments')} />;

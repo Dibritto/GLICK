@@ -22,6 +22,8 @@ export interface Transaction {
   status: TransactionStatus;
   destination_account_id?: number;
   recurrence?: RecurrenceType;
+  card_id?: number | null;
+  goal_id?: number | null;
 }
 
 export interface Category {
@@ -81,4 +83,6 @@ export interface DerivedData {
   completedGoalsCount: number;
   totalIncome: number;
   totalExpense: number;
+  cardsWithDynamicBill: Card[];
+  goalsWithDynamicAmount: Goal[];
 }
