@@ -1,55 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Plus, 
   Wallet, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  CreditCard, 
   Building2,
   MoreHorizontal,
   Zap,
-  Loader2
+  Loader2,
+  ArrowRightLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useAuth } from '../context/AuthContext';
+import { useFinance } from '../context/FinanceContext';
+import { formatCurrency } from '../utils/formatters';
 
-interface Account {
-  id: string;
-  name: string;
-  type: string;
-  balance: number;
-  color: string;
-  updated_at: string;
+interface AccountsViewProps {
+  onAddAccount?: () => void;
+  onEditAccount?: (account: any) => void;
 }
 
-const AccountsView: React.FC = () => {
-  const { token } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchAccounts = async () => {
-    if (!token) return;
-    try {
-      setIsLoading(true);
-      const res = await fetch('/api/accounts', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAccounts(data);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar contas:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [token]);
-
-  const totalBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount }) => {
+  const { accounts, isLoading, derivedData } = useFinance();
+  const { totalBalance } = derivedData;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -64,10 +34,19 @@ const AccountsView: React.FC = () => {
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]">
-          <Plus size={16} />
-          Conectar Conta
-        </button>
+        <div className="flex gap-3">
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-lead/20 text-white border border-brand-lead/30 rounded-lg hover:bg-brand-lead/30 transition-all text-xs font-bold uppercase tracking-widest">
+            <ArrowRightLeft size={16} />
+            Transferir
+          </button>
+          <button 
+            onClick={onAddAccount}
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
+          >
+            <Plus size={16} />
+            Nova Conta
+          </button>
+        </div>
       </header>
 
       {/* Grid de Contas */}
@@ -85,7 +64,8 @@ const AccountsView: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={acc.id}
-                className="glass-panel technical-border p-6 rounded-lg group hover:border-brand-blue/30 transition-all relative overflow-hidden"
+                onClick={() => onEditAccount?.(acc)}
+                className="glass-panel technical-border p-6 rounded-lg group hover:border-brand-blue/30 transition-all relative overflow-hidden cursor-pointer"
               >
                 {/* Efeito de fundo com a cor do banco */}
                 <div 
@@ -110,14 +90,14 @@ const AccountsView: React.FC = () => {
                 <div className="mt-6 relative z-10">
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saldo Disponível</p>
                   <p className="text-2xl font-mono font-bold text-white">
-                    R$ {Number(acc.balance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(acc.balance)}
                   </p>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between relative z-10">
                   <div className="flex items-center gap-2 text-[10px] text-gray-500">
                     <Zap size={12} className="text-brand-orange" />
-                    <span>Atualizado em {new Date(acc.updated_at).toLocaleDateString('pt-BR')}</span>
+                    <span>Sistema Operacional</span>
                   </div>
                   <div className="flex gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green" />
@@ -129,7 +109,10 @@ const AccountsView: React.FC = () => {
             ))}
 
             {/* Card de Adicionar */}
-            <button className="border-2 border-dashed border-brand-lead/20 rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group min-h-[240px]">
+            <button 
+              onClick={onAddAccount}
+              className="border-2 border-dashed border-brand-lead/20 rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group min-h-[240px]"
+            >
               <div className="p-4 rounded-full bg-brand-lead/10 text-gray-500 group-hover:text-brand-blue group-hover:bg-brand-blue/10 transition-all">
                 <Plus size={32} />
               </div>
@@ -153,7 +136,7 @@ const AccountsView: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-end">
               <p className="text-xs text-gray-500">Total Consolidado</p>
-              <p className="text-sm font-mono font-bold text-white">R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-sm font-mono font-bold text-white">{formatCurrency(totalBalance)}</p>
             </div>
             <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
               <div className="h-full bg-brand-blue w-full" />

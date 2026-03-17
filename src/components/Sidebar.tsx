@@ -13,20 +13,21 @@ import {
   ChevronRight,
   Package,
   ShoppingCart,
-  Lock
+  Lock,
+  X,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Tooltip from './Tooltip';
-import { X, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useFinance } from '../context/FinanceContext';
+import { formatCurrency } from '../utils/formatters';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'core' },
-  { id: 'movimentacoes', label: 'Movimentações', icon: ArrowLeftRight, module: 'core' },
+  { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight, module: 'core' },
   { id: 'contas', label: 'Contas', icon: Wallet, module: 'core' },
   { id: 'cartoes', label: 'Cartões', icon: CreditCard, module: 'core' },
-  { id: 'receitas', label: 'Receitas', icon: TrendingUp, module: 'core' },
-  { id: 'despesas', label: 'Despesas', icon: TrendingDown, module: 'core' },
   { id: 'categorias', label: 'Categorias', icon: Tags, module: 'core' },
   { id: 'metas', label: 'Metas', icon: Target, module: 'core' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, module: 'core' },
@@ -47,6 +48,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onViewChange
 }) => {
   const { user, logout } = useAuth();
+  const { derivedData, transactions } = useFinance();
+  const { totalBalance, monthlyIncome, monthlyExpenses, weeklyBurnRate, retentionRate } = derivedData;
 
   const getInitials = (name: string) => {
     return name
@@ -140,6 +143,25 @@ const Sidebar: React.FC<SidebarProps> = ({
               Novo
             </motion.div>
           </button>
+
+          <button
+            onClick={() => onViewChange?.('configuracoes')}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium rounded-lg transition-all duration-300 group relative
+              ${activeView === 'configuracoes' 
+                ? 'text-brand-blue bg-brand-blue/5 shadow-[inset_0_0_20px_rgba(44,199,255,0.05)]' 
+                : 'text-gray-400 hover:text-white hover:bg-white/5'}
+            `}
+          >
+            {activeView === 'configuracoes' && (
+              <motion.div 
+                layoutId="activeNav"
+                className="absolute left-0 top-2 bottom-2 w-1 bg-brand-blue rounded-full"
+              />
+            )}
+            <Settings size={16} className={activeView === 'configuracoes' ? 'text-brand-blue' : 'group-hover:text-brand-blue'} />
+            <span className="flex-1 text-left tracking-tight">Configurações</span>
+          </button>
         </div>
       </nav>
 
@@ -150,11 +172,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">Saldo Consolidado</p>
               <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
             </div>
-            <p className="text-base font-mono font-bold text-white tracking-tighter">R$ 3.650,50</p>
+            <p className="text-base font-mono font-bold text-white tracking-tighter">
+              {formatCurrency(totalBalance)}
+            </p>
             <div className="mt-2 h-1 w-full bg-brand-lead/20 rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: '65%' }}
+                animate={{ width: `${retentionRate}%` }}
                 className="h-full bg-brand-green shadow-[0_0_10px_rgba(0,255,159,0.3)]" 
               />
             </div>
@@ -163,8 +187,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-3 rounded-lg bg-brand-gray-deep/40 border border-brand-lead/20 backdrop-blur-md group hover:border-brand-red/30 transition-colors">
             <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Burn Rate Semanal</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-base font-mono font-bold text-white tracking-tighter">R$ 420,00</p>
-              <span className="text-[9px] text-brand-red font-bold">↑ 12%</span>
+              <p className="text-base font-mono font-bold text-white tracking-tighter">
+                {formatCurrency(weeklyBurnRate)}
+              </p>
+              {weeklyBurnRate > 0 && <span className="text-[9px] text-brand-red font-bold">↑ 100%</span>}
             </div>
           </div>
         </div>

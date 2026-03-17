@@ -11,10 +11,13 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { formatCurrency, formatPercent } from '../utils/formatters';
 
-const InvestmentsView: React.FC = () => {
-  // Simulação de estado de módulo não instalado
-  const isInstalled = false;
+interface InvestmentsViewProps {
+  isInstalled?: boolean;
+}
+
+const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false }) => {
 
   if (!isInstalled) {
     return (
@@ -79,16 +82,16 @@ const InvestmentsView: React.FC = () => {
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-panel technical-border p-6 rounded-2xl">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">Patrimônio Investido</p>
-          <p className="text-3xl font-mono font-bold text-white tracking-tighter">R$ 45.200,00</p>
+          <p className="text-3xl font-mono font-bold text-white tracking-tighter">{formatCurrency(45200)}</p>
           <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green">
             <ArrowUpRight size={12} />
-            <span>+R$ 1.250,50 (Este mês)</span>
+            <span>+{formatCurrency(1250.5)} (Este mês)</span>
           </div>
         </div>
 
         <div className="glass-panel technical-border p-6 rounded-2xl">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">Rentabilidade Total</p>
-          <p className="text-3xl font-mono font-bold text-brand-green tracking-tighter">+12,45%</p>
+          <p className="text-3xl font-mono font-bold text-brand-green tracking-tighter">{formatPercent(12.45)}</p>
           <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
             <Globe size={12} />
             <span>Benchmark: CDI (10,5%)</span>

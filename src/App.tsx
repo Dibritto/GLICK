@@ -5,37 +5,69 @@ import MainConsole from './components/MainConsole';
 import RightPanel from './components/RightPanel';
 import QuickActions from './components/QuickActions';
 import TransactionModal from './components/TransactionModal';
+import AccountModal from './components/AccountModal';
+import GoalModal from './components/GoalModal';
+import CardModal from './components/CardModal';
+import CategoryModal from './components/CategoryModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthView from './components/AuthView';
+import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
+import { useFinance } from './context/FinanceContext';
 import { Menu, Loader2 } from 'lucide-react';
 
 export default function App() {
   const { user, token, isLoading: isAuthLoading } = useAuth();
+  const { derivedData, refreshData } = useFinance();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('expense');
+  const [isTransactionTypeLocked, setIsTransactionTypeLocked] = useState(false);
   const [installedModules, setInstalledModules] = useState(['core']);
-  const [summary, setSummary] = useState({
-    totalBalance: 0,
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    projectedBalance: 0,
-    freeCapital: 0
-  });
+
+  const [editingAccount, setEditingAccount] = useState<any>(null);
+  const [editingGoal, setEditingGoal] = useState<any>(null);
+  const [editingCard, setEditingCard] = useState<any>(null);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+
+  const handleEditAccount = (account: any) => {
+    setEditingAccount(account);
+    setIsAccountModalOpen(true);
+  };
+
+  const handleEditGoal = (goal: any) => {
+    setEditingGoal(goal);
+    setIsGoalModalOpen(true);
+  };
+
+  const handleEditCard = (card: any) => {
+    setEditingCard(card);
+    setIsCardModalOpen(true);
+  };
+
+  const handleEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleEditTransaction = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setIsTransactionModalOpen(true);
+  };
 
   useEffect(() => {
     if (!token) return;
 
-    const fetchData = async () => {
+    const fetchModules = async () => {
       try {
         const headers = { 'Authorization': `Bearer ${token}` };
-
-        // Buscar Sumário
-        const summaryRes = await fetch('/api/summary', { headers });
-        if (summaryRes.ok) setSummary(await summaryRes.json());
 
         // Buscar Módulos Instalados
         const modulesRes = await fetch('/api/user/modules', { headers });
@@ -48,14 +80,14 @@ export default function App() {
           }
         }
       } catch (error) {
-        console.error('Erro ao buscar dados:', error);
+        console.error('Erro ao buscar módulos:', error);
       }
     };
 
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
+    fetchModules();
+    const interval = setInterval(refreshData, 30000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, refreshData]);
 
   if (isAuthLoading) {
     return (
@@ -69,11 +101,18 @@ export default function App() {
   }
 
   if (!user) {
-    return <AuthView />;
+    return (
+      <>
+        <Toaster position="top-right" theme="dark" richColors closeButton />
+        <AuthView />
+      </>
+    );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen w-full bg-brand-graphite overflow-hidden selection:bg-brand-blue/30 selection:text-brand-blue">
+    <ErrorBoundary>
+      <Toaster position="top-right" theme="dark" richColors closeButton />
+      <div className="flex flex-col lg:flex-row h-screen w-full bg-brand-graphite overflow-hidden selection:bg-brand-blue/30 selection:text-brand-blue">
       {/* Overlay para Mobile Sidebar */}
       {isSidebarOpen && (
         <div 
@@ -112,7 +151,7 @@ export default function App() {
           </button>
           <div className="flex-1 min-w-0 overflow-visible">
             <TopBar 
-              data={summary} 
+              data={derivedData} 
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               isSidebarOpen={isSidebarOpen}
               onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
@@ -125,15 +164,37 @@ export default function App() {
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Área Central: Console Financeiro */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-24 lg:pb-0">
-            <ErrorBoundary>
-              <MainConsole 
-                activeView={activeView} 
-                onOpenTransactionModal={(type) => {
-                  if (type) setTransactionModalType(type);
-                  setIsTransactionModalOpen(true);
-                }}
-              />
-            </ErrorBoundary>
+            <MainConsole 
+              activeView={activeView} 
+              installedModules={installedModules}
+              onOpenTransactionModal={(type, lockType = false) => {
+                if (type) setTransactionModalType(type);
+                setIsTransactionTypeLocked(lockType);
+                setEditingTransaction(null);
+                setIsTransactionModalOpen(true);
+              }}
+              onEditTransaction={handleEditTransaction}
+              onOpenAccountModal={() => {
+                setEditingAccount(null);
+                setIsAccountModalOpen(true);
+              }}
+              onEditAccount={handleEditAccount}
+              onOpenGoalModal={() => {
+                setEditingGoal(null);
+                setIsGoalModalOpen(true);
+              }}
+              onEditGoal={handleEditGoal}
+              onOpenCardModal={() => {
+                setEditingCard(null);
+                setIsCardModalOpen(true);
+              }}
+              onEditCard={handleEditCard}
+              onOpenCategoryModal={() => {
+                setEditingCategory(null);
+                setIsCategoryModalOpen(true);
+              }}
+              onEditCategory={handleEditCategory}
+            />
           </div>
 
           {/* Coluna Direita: Compromissos e Metas */}
@@ -149,10 +210,12 @@ export default function App() {
       <QuickActions 
         onAddExpense={() => {
           setTransactionModalType('expense');
+          setIsTransactionTypeLocked(false);
           setIsTransactionModalOpen(true);
         }}
         onAddIncome={() => {
           setTransactionModalType('income');
+          setIsTransactionTypeLocked(false);
           setIsTransactionModalOpen(true);
         }}
       />
@@ -160,10 +223,53 @@ export default function App() {
       {/* Modais Globais */}
       <TransactionModal 
         isOpen={isTransactionModalOpen}
-        onClose={() => setIsTransactionModalOpen(false)}
+        onClose={() => {
+          setIsTransactionModalOpen(false);
+          setEditingTransaction(null);
+          setIsTransactionTypeLocked(false);
+        }}
         type={transactionModalType}
+        lockType={isTransactionTypeLocked}
+        editingTransaction={editingTransaction}
       />
-    </div>
+
+      <AccountModal 
+        isOpen={isAccountModalOpen}
+        onClose={() => {
+          setIsAccountModalOpen(false);
+          setEditingAccount(null);
+        }}
+        editingAccount={editingAccount}
+      />
+
+      <GoalModal 
+        isOpen={isGoalModalOpen}
+        onClose={() => {
+          setIsGoalModalOpen(false);
+          setEditingGoal(null);
+        }}
+        editingGoal={editingGoal}
+      />
+
+      <CardModal 
+        isOpen={isCardModalOpen}
+        onClose={() => {
+          setIsCardModalOpen(false);
+          setEditingCard(null);
+        }}
+        editingCard={editingCard}
+      />
+
+      <CategoryModal 
+        isOpen={isCategoryModalOpen}
+        onClose={() => {
+          setIsCategoryModalOpen(false);
+          setEditingCategory(null);
+        }}
+        editingCategory={editingCategory}
+      />
+      </div>
+    </ErrorBoundary>
   );
 }
 

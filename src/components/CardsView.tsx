@@ -12,47 +12,18 @@ import {
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 
-interface Card {
-  id: string;
-  name: string;
-  account_name: string;
-  brand: string;
-  limit: number;
-  current_bill: number;
-  closing_day: number;
-  due_day: number;
-  color: string;
+import { useFinance } from '../context/FinanceContext';
+import { formatCurrency } from '../utils/formatters';
+import { Card } from '../types';
+
+interface CardsViewProps {
+  onAddCard?: () => void;
+  onEditCard?: (card: Card) => void;
 }
 
-const CardsView: React.FC = () => {
-  const { token } = useAuth();
-  const [cards, setCards] = useState<Card[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchCards = async () => {
-    if (!token) return;
-    try {
-      setIsLoading(true);
-      const res = await fetch('/api/cards', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCards(data);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar cartões:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCards();
-  }, [token]);
-
-  const totalLimit = cards.reduce((acc, curr) => acc + Number(curr.limit), 0);
-  const totalUsed = cards.reduce((acc, curr) => acc + Number(curr.current_bill), 0);
+const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
+  const { cards, isLoading, derivedData } = useFinance();
+  const { totalCardLimit, totalCardUsed } = derivedData;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -67,7 +38,10 @@ const CardsView: React.FC = () => {
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]">
+        <button 
+          onClick={onAddCard}
+          className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
+        >
           <Plus size={16} />
           Adicionar Cartão
         </button>
@@ -92,6 +66,7 @@ const CardsView: React.FC = () => {
               >
                 {/* Representação Visual do Cartão */}
                 <div 
+                  onClick={() => onEditCard?.(card)}
                   className="w-full md:w-80 h-48 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-2xl group cursor-pointer"
                   style={{ 
                     background: `linear-gradient(135deg, ${card.color} 0%, #1A1A1D 100%)`,
@@ -137,11 +112,11 @@ const CardsView: React.FC = () => {
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Fatura Atual</p>
-                        <p className="text-xl font-mono font-bold text-white">R$ {Number(card.current_bill).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xl font-mono font-bold text-white">{formatCurrency(card.current_bill || 0)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Limite Disponível</p>
-                        <p className="text-sm font-mono font-bold text-brand-blue">R$ {(Number(card.limit) - Number(card.current_bill)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(Number(card.limit) - Number(card.current_bill || 0))}</p>
                       </div>
                     </div>
 
@@ -149,13 +124,13 @@ const CardsView: React.FC = () => {
                       <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
-                          animate={{ width: `${(Number(card.current_bill) / Number(card.limit)) * 100}%` }}
-                          className={`h-full ${(Number(card.current_bill) / Number(card.limit)) > 0.8 ? 'bg-brand-red' : 'bg-brand-blue'}`} 
+                          animate={{ width: `${(Number(card.current_bill || 0) / Number(card.limit)) * 100}%` }}
+                          className={`h-full ${(Number(card.current_bill || 0) / Number(card.limit)) > 0.8 ? 'bg-brand-red' : 'bg-brand-blue'}`} 
                         />
                       </div>
                       <div className="flex justify-between text-[9px] uppercase font-bold text-gray-600 tracking-widest">
                         <span>0%</span>
-                        <span>Utilização: {Math.round((Number(card.current_bill) / Number(card.limit)) * 100)}%</span>
+                        <span>Utilização: {Math.round((Number(card.current_bill || 0) / Number(card.limit)) * 100)}%</span>
                         <span>100%</span>
                       </div>
                     </div>
@@ -165,7 +140,10 @@ const CardsView: React.FC = () => {
                         <AlertCircle size={12} />
                         <span>Fatura em aberto</span>
                       </div>
-                      <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1">
+                      <button 
+                        onClick={() => onEditCard?.(card)}
+                        className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
+                      >
                         Ver Detalhes <ChevronRight size={12} />
                       </button>
                     </div>
@@ -185,7 +163,7 @@ const CardsView: React.FC = () => {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Limite Total</p>
-            <p className="text-xl font-mono font-bold text-white">R$ {totalLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-mono font-bold text-white">{formatCurrency(totalCardLimit)}</p>
           </div>
         </div>
 
@@ -195,7 +173,7 @@ const CardsView: React.FC = () => {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Comprometimento</p>
-            <p className="text-xl font-mono font-bold text-white">R$ {totalUsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xl font-mono font-bold text-white">{formatCurrency(totalCardUsed)}</p>
           </div>
         </div>
 

@@ -12,42 +12,18 @@ import {
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 
-interface Goal {
-  id: string;
-  name: string;
-  target_amount: number;
-  current_amount: number;
-  deadline: string;
-  icon: string;
-  color: string;
+import { useFinance } from '../context/FinanceContext';
+import { formatCurrency, formatPercent } from '../utils/formatters';
+import { Goal } from '../types';
+
+interface GoalsViewProps {
+  onAddGoal?: () => void;
+  onEditGoal?: (goal: Goal) => void;
 }
 
-const GoalsView: React.FC = () => {
-  const { token } = useAuth();
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchGoals = async () => {
-    if (!token) return;
-    try {
-      setIsLoading(true);
-      const res = await fetch('/api/goals', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGoals(data);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar metas:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchGoals();
-  }, [token]);
+const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal }) => {
+  const { goals, isLoading, derivedData } = useFinance();
+  const { completedGoalsCount } = derivedData;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -62,7 +38,10 @@ const GoalsView: React.FC = () => {
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]">
+        <button 
+          onClick={onAddGoal}
+          className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
+        >
           <Plus size={16} />
           Nova Meta
         </button>
@@ -83,7 +62,8 @@ const GoalsView: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
                 key={goal.id}
-                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all"
+                onClick={() => onEditGoal?.(goal)}
+                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all cursor-pointer"
               >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
@@ -101,7 +81,7 @@ const GoalsView: React.FC = () => {
                   <div className="text-right">
                     <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Progresso</p>
                     <p className="text-lg font-mono font-bold text-white">
-                      {Math.round((Number(goal.current_amount) / Number(goal.target_amount)) * 100)}%
+                      {formatPercent((Number(goal.current_amount) / Number(goal.target_amount)) * 100)}
                     </p>
                   </div>
                 </div>
@@ -120,13 +100,13 @@ const GoalsView: React.FC = () => {
                     <div className="space-y-1">
                       <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Acumulado</p>
                       <p className="text-xl font-mono font-bold text-white">
-                        R$ {Number(goal.current_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(goal.current_amount)}
                       </p>
                     </div>
                     <div className="text-right space-y-1">
                       <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Objetivo</p>
                       <p className="text-sm font-mono font-bold text-gray-400">
-                        R$ {Number(goal.target_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(goal.target_amount)}
                       </p>
                     </div>
                   </div>
@@ -166,7 +146,7 @@ const GoalsView: React.FC = () => {
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Metas Concluídas</p>
-              <p className="text-xl font-mono font-bold text-white">{goals.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length} Objetivos</p>
+              <p className="text-xl font-mono font-bold text-white">{completedGoalsCount} Objetivos</p>
             </div>
           </div>
 

@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCcw } from 'lucide-react';
+import React, { ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -11,15 +11,12 @@ interface State {
 }
 
 class ErrorBoundary extends React.Component<Props, State> {
-  public props: Props;
-  public state: State = {
-    hasError: false,
-    error: null
-  };
-
   constructor(props: Props) {
     super(props);
-    this.props = props;
+    this.state = {
+      hasError: false,
+      error: null
+    };
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -33,26 +30,36 @@ class ErrorBoundary extends React.Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 flex flex-col items-center justify-center min-h-[400px] text-center space-y-4 bg-brand-graphite border border-brand-red/20 rounded-xl m-4">
-          <div className="p-4 bg-brand-red/10 rounded-full">
-            <AlertTriangle className="text-brand-red" size={32} />
+        <div className="min-h-screen bg-brand-graphite flex items-center justify-center p-6">
+          <div className="glass-panel technical-border p-8 rounded-2xl max-w-md w-full space-y-6 text-center">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-brand-red/10 flex items-center justify-center">
+                <AlertTriangle size={32} className="text-brand-red" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-white uppercase tracking-tighter italic font-serif">
+                Falha Crítica na Telemetria
+              </h2>
+              <p className="text-xs text-gray-500 uppercase tracking-widest leading-relaxed">
+                Ocorreu um erro inesperado no processamento de dados. A integridade do sistema foi preservada.
+              </p>
+            </div>
+            {this.state.error && (
+              <div className="bg-black/40 p-3 rounded-lg border border-white/5">
+                <p className="text-[10px] font-mono text-brand-red break-all">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-blue text-brand-graphite rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-brand-blue/80 transition-all"
+            >
+              <RefreshCw size={14} />
+              Reiniciar Console
+            </button>
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tighter">Ops! Algo deu errado no console.</h2>
-          <p className="text-gray-400 text-sm max-w-md leading-relaxed">
-            Houve um erro técnico ao processar este módulo. Isso geralmente acontece quando o banco de dados ainda não está totalmente configurado.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-6 py-2 bg-brand-blue text-brand-graphite font-bold rounded-lg hover:bg-brand-blue/80 transition-all uppercase text-xs tracking-widest"
-          >
-            <RefreshCcw size={14} />
-            Recarregar Sistema
-          </button>
-          {process.env.NODE_ENV === 'development' && (
-            <pre className="mt-4 p-4 bg-black/40 text-brand-red text-[10px] font-mono rounded overflow-auto max-w-full text-left">
-              {this.state.error?.toString()}
-            </pre>
-          )}
         </div>
       );
     }

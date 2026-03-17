@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, TrendingUp, TrendingDown, Target, Wallet, PanelRight, PanelLeft } from 'lucide-react';
 import Tooltip from './Tooltip';
+import { formatCurrency } from '../utils/formatters';
 
 interface TopBarProps {
   data: {
@@ -23,13 +24,6 @@ const TopBar: React.FC<TopBarProps> = ({
   onToggleRightPanel, 
   isRightPanelOpen 
 }) => {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
-
   return (
     <header className="h-11 flex-shrink-0 bg-brand-graphite border-b border-brand-lead/20 relative z-50 overflow-visible">
       <div className="flex items-center h-full px-2 gap-2 md:gap-4 overflow-visible">

@@ -1,59 +1,84 @@
-export type TransactionType = 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA';
-export type TransactionStatus = 'PENDENTE' | 'CONFIRMADO' | 'RECONCILIADO';
-export type AccountType = 'CONTA_BANCARIA' | 'CONTA_DIGITAL' | 'CARTEIRA' | 'CARTAO_CREDITO' | 'INVESTIMENTO';
-export type Periodicity = 'MENSAL' | 'SEMANAL' | 'ANUAL' | 'UNICA';
-
-export interface Category {
-  id: string;
-  nome: string;
-  subcategorias?: string[];
-  icon?: string;
-}
+export type TransactionType = 'income' | 'expense' | 'transfer';
+export type TransactionStatus = 'confirmed' | 'pending';
+export type RecurrenceType = 'none' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Account {
-  id: string;
-  nome: string;
-  tipo: AccountType;
-  saldoAtual: number;
-  instituicao: string;
-  cor: string;
-  limiteTotal?: number; // Para cartões
-  limiteUsado?: number; // Para cartões
-  dataFechamento?: number; // Dia do mês
-  dataVencimento?: number; // Dia do mês
+  id: number;
+  name: string;
+  type: string;
+  balance: number;
+  color: string;
 }
 
 export interface Transaction {
   id: string;
-  tipo: TransactionType;
-  valor: number;
-  descricao: string;
-  data: string; // ISO Date
-  categoria: string;
-  contaOrigemId: string;
-  contaDestinoId?: string; // Para transferências
+  date: string;
+  description: string;
+  category: string;
+  account_id: number;
+  account_name?: string;
+  amount: number;
+  type: TransactionType;
   status: TransactionStatus;
-  recorrente: boolean;
-  periodicidade?: Periodicity;
+  destination_account_id?: number;
+  recurrence?: RecurrenceType;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  type: 'income' | 'expense';
+  budget: number;
+  spent: number;
+  color: string;
+  icon: string;
 }
 
 export interface Goal {
-  id: string;
-  nome: string;
-  valorObjetivo: number;
-  valorAtual: number;
-  prazo: string;
-  contaAssociadaId?: string;
+  id: number;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  deadline: string;
+  color: string;
 }
 
-export interface FinancialSummary {
-  saldoTotal: number;
-  receitasMes: number;
-  despesasMes: number;
-  saldoProjetado: number;
-  dinheiroLivre: number;
-  dinheiroComprometido: number;
-  dinheiroReservado: number;
-  gastoMedioDiario: number;
-  autonomiaDias: number;
+export interface Card {
+  id: number;
+  name: string;
+  account_id: number;
+  account_name?: string;
+  brand: string;
+  limit: number;
+  closing_day: number;
+  due_day: number;
+  color: string;
+  current_bill: number;
+}
+
+export interface DerivedData {
+  totalBalance: number;
+  reservedBalance: number;
+  freeCapital: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  predictedIncome: number;
+  predictedExpense: number;
+  projectedBalance: number;
+  moneyVelocity: string;
+  retentionRate: number;
+  dailyAverageSpending: number;
+  financialAutonomy: number;
+  weeklyBurnRate: number;
+  chartData: { month: string; receitas: number; despesas: number }[];
+  spendingByCategory: { name: string; value: number; color: string }[];
+  projectedTransactions: Transaction[];
+  confirmedTransactions: Transaction[];
+  pendingTransactions: Transaction[];
+  allTransactionsSorted: Transaction[];
+  totalCardLimit: number;
+  totalCardUsed: number;
+  completedGoalsCount: number;
+  totalIncome: number;
+  totalExpense: number;
 }

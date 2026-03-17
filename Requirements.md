@@ -11,10 +11,11 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 - Transferências entre contas.
 
 ### 2. Controle de Transações
-- Registro de Receitas, Despesas e Transferências.
+- Registro de Receitas, Despesas e Transferências no Centro de Fluxo de Caixa.
 - Categorização hierárquica (Categoria -> Subcategoria).
 - Status de transação: pendente, confirmado, reconciliado.
 - Despesas recorrentes (mensal, semanal, anual).
+- Filtros avançados por tipo (Entradas, Saídas, Transferências) e categoria.
 
 ### 3. Inteligência e Previsão
 - **Saldo Projetado:** Cálculo automático do saldo final do mês baseado em receitas e despesas futuras.
@@ -30,8 +31,9 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 - **Responsividade Total:** Interface adaptável para dispositivos móveis, tablets e desktops, com menus laterais retráteis em ambos os lados e empilhamento inteligente de painéis.
 - **Visualização de Dados:** Gráficos interativos de fluxo de gastos utilizando Recharts.
 - **SEO Profissional:** Estrutura semântica HTML5, meta tags otimizadas e dados estruturados JSON-LD.
-- **Sistema de Modais:** Interface de entrada rápida para receitas e despesas com validação visual.
+- **Sistema de Modais:** Interface de entrada rápida para receitas, despesas, contas, metas, cartões e categorias com validação visual e feedback via toasts.
 - **Lista de Transações:** Visualização detalhada das movimentações recentes com filtros rápidos.
+- **Configurações do Usuário:** Console dedicado para gestão de perfil, segurança, preferências de sistema e exportação de dados.
 - **Refinamento de Usabilidade:** Tooltips corrigidos para evitar clipping, contraste de cores aprimorado para legibilidade técnica e targets de interação otimizados.
 - **Controle de Layout:** Botões dedicados na barra superior para ocultar/mostrar as barras laterais esquerda e direita, permitindo foco total nos dados centrais.
 - **Header Inteligente:** Telemetria responsiva que oculta rótulos de texto em telas menores para evitar sobreposição e garantir clareza visual.

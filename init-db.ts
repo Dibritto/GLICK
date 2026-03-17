@@ -41,6 +41,7 @@ async function init() {
         table.date('date').notNullable();
         table.string('description');
         table.string('status').defaultTo('confirmed');
+        table.string('recurrence').nullable(); // 'none', 'monthly', 'weekly', etc.
         table.integer('destination_account_id').unsigned().references('id').inTable('accounts'); // Para transferências
         table.timestamps(true, true);
       });
@@ -63,6 +64,21 @@ async function init() {
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [cards] criada.');
+    }
+
+    // Tabela de Categorias
+    if (!await db.schema.hasTable('categories')) {
+      await db.schema.createTable('categories', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.string('name').notNullable();
+        table.string('type').notNullable(); // income, expense
+        table.string('icon').defaultTo('Tag');
+        table.string('color').defaultTo('#2CC7FF');
+        table.decimal('budget', 15, 2).defaultTo(0);
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [categories] criada.');
     }
 
     // Tabela de Metas
@@ -138,6 +154,18 @@ async function init() {
         { name: 'Multi-Contas', slug: 'multi-accounts', description: 'Gerencie contas de terceiros ou empresas', icon: 'Users', price: 49.90 }
       ]);
       console.log('🌱 Seed: Módulos do marketplace criados.');
+    }
+
+    const categoriesCount = await db('categories').count('id as count').first();
+    if (categoriesCount?.count === 0) {
+      await db('categories').insert([
+        { user_id: 1, name: 'Alimentação', type: 'expense', icon: '🍔', color: '#FF4B4B', budget: 1200 },
+        { user_id: 1, name: 'Transporte', type: 'expense', icon: '🚗', color: '#2CC7FF', budget: 400 },
+        { user_id: 1, name: 'Moradia', type: 'expense', icon: '🏠', color: '#F27D26', budget: 2500 },
+        { user_id: 1, name: 'Lazer', type: 'expense', icon: '🎬', color: '#00FF9F', budget: 500 },
+        { user_id: 1, name: 'Renda', type: 'income', icon: '💰', color: '#2ECC71', budget: 0 }
+      ]);
+      console.log('🌱 Seed: Categorias iniciais criadas.');
     }
 
     console.log('🚀 Banco de dados pronto para uso!');

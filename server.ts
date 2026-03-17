@@ -7,9 +7,77 @@ import cors from 'cors';
 import bcryptjs from 'bcryptjs';
 const bcrypt = (bcryptjs as any).default || bcryptjs;
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import db from './src/lib/db.js';
 
 dotenv.config();
+
+// --- SCHEMAS DE VALIDAÇÃO ---
+const registerSchema = z.object({
+  name: z.string().min(2, 'Nome muito curto'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres')
+});
+
+const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'Senha obrigatória')
+});
+
+const transactionSchema = z.object({
+  account_id: z.number().positive(),
+  destination_account_id: z.number().positive().optional(),
+  type: z.enum(['income', 'expense', 'transfer']),
+  category: z.string().min(1),
+  amount: z.number().positive('O valor deve ser positivo'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de data inválido (YYYY-MM-DD)'),
+  description: z.string().min(1),
+  status: z.enum(['confirmed', 'pending']).default('confirmed'),
+  recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly']).optional().default('none')
+});
+
+const accountSchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  balance: z.number(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Cor inválida')
+});
+
+const goalSchema = z.object({
+  name: z.string().min(1),
+  target_amount: z.number().positive(),
+  current_amount: z.number().min(0),
+  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i)
+});
+
+const cardSchema = z.object({
+  name: z.string().min(1),
+  account_id: z.number().positive(),
+  brand: z.string().min(1),
+  limit: z.number().positive(),
+  closing_day: z.number().min(1).max(31),
+  due_day: z.number().min(1).max(31),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i)
+});
+
+const categorySchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(['income', 'expense']),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i)
+});
+
+const validate = (schema: z.ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
+  try {
+    schema.parse(req.body);
+    next();
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0].message });
+    }
+    next(error);
+  }
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,7 +111,7 @@ async function startServer() {
 
   // --- API ROUTES (AUTH) ---
   
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', validate(registerSchema), async (req, res) => {
     const { name, email, password } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -72,7 +140,7 @@ async function startServer() {
     }
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', validate(loginSchema), async (req, res) => {
     const { email, password } = req.body;
     try {
       const user = await db('users').where('email', email).first();
@@ -110,37 +178,7 @@ async function startServer() {
     res.json({ status: 'ok', message: 'Backend SQL operacional' });
   });
 
-  // 1. Resumo de Telemetria (TopBar)
-  app.get('/api/summary', authenticateToken, async (req: AuthRequest, res) => {
-    const userId = req.user?.id;
-    try {
-      const income = await db('transactions')
-        .join('accounts', 'transactions.account_id', 'accounts.id')
-        .where('accounts.user_id', userId)
-        .where('transactions.type', 'income')
-        .sum('transactions.amount as total').first();
-
-      const expenses = await db('transactions')
-        .join('accounts', 'transactions.account_id', 'accounts.id')
-        .where('accounts.user_id', userId)
-        .where('transactions.type', 'expense')
-        .sum('transactions.amount as total').first();
-
-      const accounts = await db('accounts')
-        .where('user_id', userId)
-        .sum('balance as total').first();
-
-      res.json({
-        totalBalance: accounts?.total || 0,
-        monthlyIncome: income?.total || 0,
-        monthlyExpenses: expenses?.total || 0,
-        projectedBalance: (Number(accounts?.total) || 0) + (Number(income?.total) || 0) - (Number(expenses?.total) || 0),
-        freeCapital: (Number(accounts?.total) || 0) * 0.4
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Erro ao calcular resumo' });
-    }
-  });
+  // 1. Resumo de Telemetria - REMOVIDO (Calculado no Cliente)
 
   // 2. Listar Transações
   app.get('/api/transactions', authenticateToken, async (req: AuthRequest, res) => {
@@ -159,8 +197,8 @@ async function startServer() {
   });
 
   // 3. Criar Transação
-  app.post('/api/transactions', authenticateToken, async (req: AuthRequest, res) => {
-    const { account_id, type, category, amount, date, description, status, destination_account_id } = req.body;
+  app.post('/api/transactions', authenticateToken, validate(transactionSchema), async (req: AuthRequest, res) => {
+    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence } = req.body;
     const userId = req.user?.id;
     
     try {
@@ -183,7 +221,8 @@ async function startServer() {
             date, 
             description: description || `Transferência para ${destAccount.name}`, 
             status: status || 'confirmed',
-            destination_account_id
+            destination_account_id,
+            recurrence: recurrence || 'none'
           });
 
           // Atualizar saldos
@@ -193,7 +232,7 @@ async function startServer() {
       } else {
         await db.transaction(async (trx) => {
           await trx('transactions').insert({
-            account_id, type, category, amount, date, description, status: status || 'confirmed'
+            account_id, type, category, amount, date, description, status: status || 'confirmed', recurrence: recurrence || 'none'
           });
 
           const adjustment = type === 'income' ? amount : -amount;
@@ -210,6 +249,58 @@ async function startServer() {
     }
   });
 
+  app.put('/api/transactions/:id', authenticateToken, validate(transactionSchema), async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence } = req.body;
+    const userId = req.user?.id;
+
+    try {
+      const transaction = await db('transactions')
+        .join('accounts', 'transactions.account_id', 'accounts.id')
+        .where('transactions.id', id)
+        .where('accounts.user_id', userId)
+        .first();
+
+      if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
+
+      await db.transaction(async (trx) => {
+        // 1. Reverter saldo antigo
+        const oldAdjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+        await trx('accounts').where('id', transaction.account_id).increment('balance', oldAdjustment);
+        
+        if (transaction.type === 'transfer' && transaction.destination_account_id) {
+          await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+        }
+
+        // 2. Aplicar novo saldo
+        const newAccount = await trx('accounts').where({ id: account_id, user_id: userId }).first();
+        if (!newAccount) throw new Error('Conta de origem inválida');
+
+        if (type === 'transfer') {
+          if (!destination_account_id) throw new Error('Conta de destino necessária');
+          const destAccount = await trx('accounts').where({ id: destination_account_id, user_id: userId }).first();
+          if (!destAccount) throw new Error('Conta de destino inválida');
+
+          await trx('accounts').where('id', account_id).decrement('balance', amount);
+          await trx('accounts').where('id', destination_account_id).increment('balance', amount);
+        } else {
+          const newAdjustment = type === 'income' ? amount : -amount;
+          await trx('accounts').where('id', account_id).increment('balance', newAdjustment);
+        }
+
+        // 3. Atualizar registro
+        await trx('transactions').where('id', id).update({
+          account_id, type, category, amount, date, description, status, destination_account_id, recurrence
+        });
+      });
+
+      res.json({ message: 'Transação atualizada com sucesso' });
+    } catch (error: any) {
+      console.error('Erro ao atualizar transação:', error);
+      res.status(500).json({ error: error.message || 'Erro ao atualizar transação' });
+    }
+  });
+
   // 4. Listar Contas
   app.get('/api/accounts', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
@@ -218,6 +309,68 @@ async function startServer() {
       res.json(accounts);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao buscar contas' });
+    }
+  });
+
+  app.post('/api/accounts', authenticateToken, validate(accountSchema), async (req: AuthRequest, res) => {
+    const { name, type, balance, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const [id] = await db('accounts').insert({
+        user_id: userId,
+        name,
+        type,
+        balance,
+        color
+      });
+      res.status(201).json({ id, name, type, balance, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar conta' });
+    }
+  });
+
+  app.put('/api/accounts/:id', authenticateToken, validate(accountSchema), async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { name, type, balance, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const updated = await db('accounts')
+        .where({ id, user_id: userId })
+        .update({ name, type, balance, color });
+      
+      if (!updated) return res.status(404).json({ error: 'Conta não encontrada' });
+      res.json({ id, name, type, balance, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar conta' });
+    }
+  });
+
+  app.delete('/api/accounts/:id', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    try {
+      // 1. Verificar se existem transações vinculadas
+      const transactions = await db('transactions')
+        .where('account_id', id)
+        .orWhere('destination_account_id', id)
+        .first();
+      
+      if (transactions) {
+        return res.status(400).json({ error: 'Não é possível excluir conta com transações vinculadas. Remova as transações primeiro.' });
+      }
+
+      // 2. Verificar se existem cartões vinculados
+      const cards = await db('cards').where('account_id', id).first();
+      if (cards) {
+        return res.status(400).json({ error: 'Esta conta possui cartões de crédito vinculados. Remova os cartões primeiro.' });
+      }
+
+      const deleted = await db('accounts').where({ id, user_id: userId }).delete();
+      if (!deleted) return res.status(404).json({ error: 'Conta não encontrada' });
+      res.json({ message: 'Conta excluída com sucesso' });
+    } catch (error) {
+      console.error('Erro ao excluir conta:', error);
+      res.status(500).json({ error: 'Erro ao excluir conta' });
     }
   });
 
@@ -290,6 +443,62 @@ async function startServer() {
     }
   });
 
+  app.post('/api/cards', authenticateToken, validate(cardSchema), async (req: AuthRequest, res) => {
+    const { name, account_id, brand, limit, closing_day, due_day, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      // Verificar se a conta pertence ao usuário
+      const account = await db('accounts').where({ id: account_id, user_id: userId }).first();
+      if (!account) return res.status(403).json({ error: 'Acesso negado à conta vinculada' });
+
+      const [id] = await db('cards').insert({
+        user_id: userId,
+        account_id,
+        name,
+        brand,
+        limit,
+        closing_day,
+        due_day,
+        color,
+        current_bill: 0
+      });
+      res.status(201).json({ id, name, brand, limit, closing_day, due_day, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar cartão' });
+    }
+  });
+
+  app.put('/api/cards/:id', authenticateToken, validate(cardSchema), async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { name, account_id, brand, limit, closing_day, due_day, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const account = await db('accounts').where({ id: account_id, user_id: userId }).first();
+      if (!account) return res.status(403).json({ error: 'Acesso negado à conta vinculada' });
+
+      const updated = await db('cards')
+        .where({ id, user_id: userId })
+        .update({ name, account_id, brand, limit, closing_day, due_day, color });
+      
+      if (!updated) return res.status(404).json({ error: 'Cartão não encontrado' });
+      res.json({ id, name, brand, limit, closing_day, due_day, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar cartão' });
+    }
+  });
+
+  app.delete('/api/cards/:id', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    try {
+      const deleted = await db('cards').where({ id, user_id: userId }).delete();
+      if (!deleted) return res.status(404).json({ error: 'Cartão não encontrado' });
+      res.json({ message: 'Cartão excluído com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao excluir cartão' });
+    }
+  });
+
   // 9. Listar Metas
   app.get('/api/goals', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
@@ -298,6 +507,167 @@ async function startServer() {
       res.json(goals);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao buscar metas' });
+    }
+  });
+
+  app.post('/api/goals', authenticateToken, validate(goalSchema), async (req: AuthRequest, res) => {
+    const { name, target_amount, current_amount, deadline, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const [id] = await db('goals').insert({
+        user_id: userId,
+        name,
+        target_amount,
+        current_amount,
+        deadline,
+        color
+      });
+      res.status(201).json({ id, name, target_amount, current_amount, deadline, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar meta' });
+    }
+  });
+
+  app.put('/api/goals/:id', authenticateToken, validate(goalSchema), async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { name, target_amount, current_amount, deadline, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const updated = await db('goals')
+        .where({ id, user_id: userId })
+        .update({ name, target_amount, current_amount, deadline, color });
+      
+      if (!updated) return res.status(404).json({ error: 'Meta não encontrada' });
+      res.json({ id, name, target_amount, current_amount, deadline, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar meta' });
+    }
+  });
+
+  app.delete('/api/goals/:id', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    try {
+      const deleted = await db('goals').where({ id, user_id: userId }).delete();
+      if (!deleted) return res.status(404).json({ error: 'Meta não encontrada' });
+      res.json({ message: 'Meta excluída com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao excluir meta' });
+    }
+  });
+
+  // 10. Listar Categorias
+  app.get('/api/categories', authenticateToken, async (req: AuthRequest, res) => {
+    const userId = req.user?.id;
+    try {
+      const categories = await db('categories').where('user_id', userId).select('*');
+      
+      // Calcular gastos reais por categoria no mês atual
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const expensesByCategory = await db('transactions')
+        .join('accounts', 'transactions.account_id', 'accounts.id')
+        .where('accounts.user_id', userId)
+        .where('transactions.type', 'expense')
+        .where('transactions.date', '>=', startOfMonth.toISOString().split('T')[0])
+        .select('category')
+        .sum('amount as total')
+        .groupBy('category');
+
+      const enrichedCategories = categories.map(cat => {
+        const expense = expensesByCategory.find(e => e.category === cat.name);
+        return {
+          ...cat,
+          spent: expense?.total || 0
+        };
+      });
+
+      res.json(enrichedCategories);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar categorias' });
+    }
+  });
+
+  app.post('/api/categories', authenticateToken, validate(categorySchema), async (req: AuthRequest, res) => {
+    const { name, type, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const [id] = await db('categories').insert({
+        user_id: userId,
+        name,
+        type,
+        color,
+        budget: 0
+      });
+      res.status(201).json({ id, name, type, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar categoria' });
+    }
+  });
+
+  app.put('/api/categories/:id', authenticateToken, validate(categorySchema), async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const { name, type, color } = req.body;
+    const userId = req.user?.id;
+    try {
+      const updated = await db('categories')
+        .where({ id, user_id: userId })
+        .update({ name, type, color });
+      
+      if (!updated) return res.status(404).json({ error: 'Categoria não encontrada' });
+      res.json({ id, name, type, color });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar categoria' });
+    }
+  });
+
+  app.delete('/api/categories/:id', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    try {
+      const deleted = await db('categories').where({ id, user_id: userId }).delete();
+      if (!deleted) return res.status(404).json({ error: 'Categoria não encontrada' });
+      res.json({ message: 'Categoria excluída com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao excluir categoria' });
+    }
+  });
+
+  // 11. Relatórios (Dados agregados) - REMOVIDO (Calculado no Cliente)
+
+
+  // 12. Deletar Transação
+  app.delete('/api/transactions/:id', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    try {
+      const transaction = await db('transactions')
+        .join('accounts', 'transactions.account_id', 'accounts.id')
+        .where('transactions.id', id)
+        .where('accounts.user_id', userId)
+        .first();
+
+      if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
+
+      await db.transaction(async (trx) => {
+        // Reverter saldo da conta
+        const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+        await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
+        
+        // Se for transferência, reverter conta destino também
+        if (transaction.type === 'transfer' && transaction.destination_account_id) {
+          await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+        }
+
+        await trx('transactions').where('id', id).delete();
+      });
+
+      res.json({ message: 'Transação removida com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao deletar transação' });
     }
   });
 
