@@ -42,6 +42,7 @@ const accountSchema = z.object({
   name: z.string().min(1),
   type: z.string().min(1),
   balance: z.number(),
+  initial_balance: z.number().optional().default(0),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Cor inválida')
 });
 
@@ -66,7 +67,8 @@ const cardSchema = z.object({
 const categorySchema = z.object({
   name: z.string().min(1),
   type: z.enum(['income', 'expense']),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i)
+  color: z.string().regex(/^#[0-9A-F]{6}$/i),
+  budget: z.number().min(0).optional().default(0)
 });
 
 const validate = (schema: z.ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
@@ -129,6 +131,7 @@ async function startServer() {
         name: 'Carteira Principal',
         type: 'checking',
         balance: 0,
+        initial_balance: 0,
         color: '#2CC7FF'
       });
 
@@ -187,11 +190,12 @@ async function startServer() {
     const userId = req.user?.id;
     try {
       const transactions = await db('transactions')
-        .select('transactions.*', 'accounts.name as account_name')
+        .select('transactions.*', 'accounts.name as account_name', 'cards.name as card_name')
         .join('accounts', 'transactions.account_id', 'accounts.id')
+        .leftJoin('cards', 'transactions.card_id', 'cards.id')
         .where('accounts.user_id', userId)
         .orderBy('date', 'desc')
-        .limit(50);
+        .limit(100);
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao buscar transações' });
@@ -224,7 +228,7 @@ async function startServer() {
         if (!destAccount) return res.status(403).json({ error: 'Acesso negado à conta de destino' });
 
         await db.transaction(async (trx) => {
-          // Registro da saída (a transferência aparece como um único registro no banco com destino)
+          // Registro da saída
           await trx('transactions').insert({
             account_id, 
             type: 'transfer', 
@@ -237,18 +241,22 @@ async function startServer() {
             recurrence: recurrence || 'none'
           });
 
-          // Atualizar saldos
-          await trx('accounts').where('id', account_id).decrement('balance', amount);
-          await trx('accounts').where('id', destination_account_id).increment('balance', amount);
+          // Atualizar saldos apenas se confirmado
+          if ((status || 'confirmed') === 'confirmed') {
+            await trx('accounts').where('id', account_id).decrement('balance', amount);
+            await trx('accounts').where('id', destination_account_id).increment('balance', amount);
+          }
         });
       } else {
         await db.transaction(async (trx) => {
+          const finalStatus = status || 'confirmed';
           await trx('transactions').insert({
-            account_id, type, category, amount, date, description, status: status || 'confirmed', recurrence: recurrence || 'none', card_id: card_id || null, goal_id: goal_id || null
+            account_id, type, category, amount, date, description, status: finalStatus, recurrence: recurrence || 'none', card_id: card_id || null, goal_id: goal_id || null
           });
 
-          // Se for gasto no cartão, não desconta da conta agora. A fatura será paga depois.
-          if (!card_id) {
+          // Se for gasto no cartão, não desconta da conta agora.
+          // Só ajusta saldo se for confirmado e não for cartão
+          if (!card_id && finalStatus === 'confirmed') {
             const adjustment = type === 'income' ? amount : -amount;
             await trx('accounts')
               .where('id', account_id)
@@ -290,8 +298,8 @@ async function startServer() {
       }
 
       await db.transaction(async (trx) => {
-        // 1. Reverter saldo antigo (apenas se não for cartão)
-        if (!transaction.card_id) {
+        // 1. Reverter saldo antigo (apenas se confirmado e não for cartão)
+        if (!transaction.card_id && transaction.status === 'confirmed') {
           const oldAdjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
           await trx('accounts').where('id', transaction.account_id).increment('balance', oldAdjustment);
           
@@ -300,20 +308,22 @@ async function startServer() {
           }
         }
 
-        // 2. Aplicar novo saldo
+        // 2. Aplicar novo saldo (apenas se confirmado e não for cartão)
         const newAccount = await trx('accounts').where({ id: account_id, user_id: userId }).first();
         if (!newAccount) throw new Error('Conta de origem inválida');
 
-        if (type === 'transfer') {
-          if (!destination_account_id) throw new Error('Conta de destino necessária');
-          const destAccount = await trx('accounts').where({ id: destination_account_id, user_id: userId }).first();
-          if (!destAccount) throw new Error('Conta de destino inválida');
+        if (status === 'confirmed') {
+          if (type === 'transfer') {
+            if (!destination_account_id) throw new Error('Conta de destino necessária');
+            const destAccount = await trx('accounts').where({ id: destination_account_id, user_id: userId }).first();
+            if (!destAccount) throw new Error('Conta de destino inválida');
 
-          await trx('accounts').where('id', account_id).decrement('balance', amount);
-          await trx('accounts').where('id', destination_account_id).increment('balance', amount);
-        } else if (!card_id) { // Só ajusta saldo se não for cartão
-          const newAdjustment = type === 'income' ? amount : -amount;
-          await trx('accounts').where('id', account_id).increment('balance', newAdjustment);
+            await trx('accounts').where('id', account_id).decrement('balance', amount);
+            await trx('accounts').where('id', destination_account_id).increment('balance', amount);
+          } else if (!card_id) { // Só ajusta saldo se não for cartão
+            const newAdjustment = type === 'income' ? amount : -amount;
+            await trx('accounts').where('id', account_id).increment('balance', newAdjustment);
+          }
         }
 
         // 3. Atualizar registro
@@ -341,7 +351,7 @@ async function startServer() {
   });
 
   app.post('/api/accounts', authenticateToken, validate(accountSchema), async (req: AuthRequest, res) => {
-    const { name, type, balance, color } = req.body;
+    const { name, type, balance, initial_balance, color } = req.body;
     const userId = req.user?.id;
     try {
       const [id] = await db('accounts').insert({
@@ -349,9 +359,10 @@ async function startServer() {
         name,
         type,
         balance,
+        initial_balance: initial_balance || 0,
         color
       });
-      res.status(201).json({ id, name, type, balance, color });
+      res.status(201).json({ id, name, type, balance, initial_balance: initial_balance || 0, color });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao criar conta' });
     }
@@ -359,17 +370,65 @@ async function startServer() {
 
   app.put('/api/accounts/:id', authenticateToken, validate(accountSchema), async (req: AuthRequest, res) => {
     const { id } = req.params;
-    const { name, type, balance, color } = req.body;
+    const { name, type, balance, initial_balance, color } = req.body;
     const userId = req.user?.id;
     try {
       const updated = await db('accounts')
         .where({ id, user_id: userId })
-        .update({ name, type, balance, color });
+        .update({ name, type, balance, initial_balance, color });
       
       if (!updated) return res.status(404).json({ error: 'Conta não encontrada' });
-      res.json({ id, name, type, balance, color });
+      res.json({ id, name, type, balance, initial_balance, color });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao atualizar conta' });
+    }
+  });
+
+  // Recalcular saldo baseado em transações confirmadas
+  app.post('/api/accounts/:id/recalculate', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    try {
+      const account = await db('accounts').where({ id, user_id: userId }).first();
+      if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+      // Somar todas as transações confirmadas que NÃO são de cartão de crédito
+      const transactions = await db('transactions')
+        .where('account_id', id)
+        .where('status', 'confirmed')
+        .whereNull('card_id')
+        .select('type', 'amount', 'destination_account_id');
+
+      let totalAdjustment = 0;
+      for (const t of transactions) {
+        if (t.type === 'income') {
+          totalAdjustment += t.amount;
+        } else if (t.type === 'expense') {
+          totalAdjustment -= t.amount;
+        } else if (t.type === 'transfer') {
+          // Se for a conta de origem da transferência
+          totalAdjustment -= t.amount;
+        }
+      }
+
+      // Somar transferências onde esta conta é o destino
+      const incomingTransfers = await db('transactions')
+        .where('destination_account_id', id)
+        .where('status', 'confirmed')
+        .where('type', 'transfer')
+        .sum('amount as total')
+        .first();
+
+      const incomingTotal = incomingTransfers?.total || 0;
+      const newBalance = Number(account.initial_balance) + totalAdjustment + Number(incomingTotal);
+
+      await db('accounts').where('id', id).update({ balance: newBalance });
+
+      res.json({ id, balance: newBalance });
+    } catch (error) {
+      console.error('Erro ao recalcular saldo:', error);
+      res.status(500).json({ error: 'Erro ao recalcular saldo' });
     }
   });
 
@@ -519,6 +578,11 @@ async function startServer() {
     const { id } = req.params;
     const userId = req.user?.id;
     try {
+      const linkedTransactions = await db('transactions').where('card_id', id).first();
+      if (linkedTransactions) {
+        return res.status(400).json({ error: 'Não é possível excluir um cartão com transações vinculadas.' });
+      }
+
       const deleted = await db('cards').where({ id, user_id: userId }).delete();
       if (!deleted) return res.status(404).json({ error: 'Cartão não encontrado' });
       res.json({ message: 'Cartão excluído com sucesso' });
@@ -581,6 +645,11 @@ async function startServer() {
     const { id } = req.params;
     const userId = req.user?.id;
     try {
+      const linkedTransactions = await db('transactions').where('goal_id', id).first();
+      if (linkedTransactions) {
+        return res.status(400).json({ error: 'Não é possível excluir uma meta com transações vinculadas.' });
+      }
+
       const deleted = await db('goals').where({ id, user_id: userId }).delete();
       if (!deleted) return res.status(404).json({ error: 'Meta não encontrada' });
       res.json({ message: 'Meta excluída com sucesso' });
@@ -624,7 +693,7 @@ async function startServer() {
   });
 
   app.post('/api/categories', authenticateToken, validate(categorySchema), async (req: AuthRequest, res) => {
-    const { name, type, color } = req.body;
+    const { name, type, color, budget } = req.body;
     const userId = req.user?.id;
     try {
       const [id] = await db('categories').insert({
@@ -632,9 +701,9 @@ async function startServer() {
         name,
         type,
         color,
-        budget: 0
+        budget: budget || 0
       });
-      res.status(201).json({ id, name, type, color });
+      res.status(201).json({ id, name, type, color, budget: budget || 0 });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao criar categoria' });
     }
@@ -642,15 +711,15 @@ async function startServer() {
 
   app.put('/api/categories/:id', authenticateToken, validate(categorySchema), async (req: AuthRequest, res) => {
     const { id } = req.params;
-    const { name, type, color } = req.body;
+    const { name, type, color, budget } = req.body;
     const userId = req.user?.id;
     try {
       const updated = await db('categories')
         .where({ id, user_id: userId })
-        .update({ name, type, color });
+        .update({ name, type, color, budget: budget || 0 });
       
       if (!updated) return res.status(404).json({ error: 'Categoria não encontrada' });
-      res.json({ id, name, type, color });
+      res.json({ id, name, type, color, budget: budget || 0 });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao atualizar categoria' });
     }
@@ -686,13 +755,15 @@ async function startServer() {
       if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
 
       await db.transaction(async (trx) => {
-        // Reverter saldo da conta
-        const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
-        await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
-        
-        // Se for transferência, reverter conta destino também
-        if (transaction.type === 'transfer' && transaction.destination_account_id) {
-          await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+        // Reverter saldo da conta apenas se confirmado e não for de cartão
+        if (!transaction.card_id && transaction.status === 'confirmed') {
+          const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+          await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
+          
+          // Se for transferência, reverter conta destino também
+          if (transaction.type === 'transfer' && transaction.destination_account_id) {
+            await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+          }
         }
 
         await trx('transactions').where('id', id).delete();

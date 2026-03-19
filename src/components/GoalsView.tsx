@@ -13,7 +13,7 @@ import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 
 import { useFinance } from '../context/FinanceContext';
-import { formatCurrency, formatPercent } from '../utils/formatters';
+import { formatCurrency, formatPercent, formatDate } from '../utils/formatters';
 import { Goal } from '../types';
 
 interface GoalsViewProps {
@@ -117,7 +117,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
                 <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-[10px] text-gray-500">
                     <Calendar size={12} />
-                    <span>Prazo: {goal.deadline ? new Date(goal.deadline).toLocaleDateString('pt-BR') : 'Sem prazo'}</span>
+                    <span>Prazo: {goal.deadline ? formatDate(goal.deadline) : 'Sem prazo'}</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <button 

@@ -7,6 +7,8 @@ export interface Account {
   name: string;
   type: string;
   balance: number;
+  initial_balance: number;
+  projected_balance?: number;
   color: string;
 }
 
@@ -17,6 +19,7 @@ export interface Transaction {
   category: string;
   account_id: number;
   account_name?: string;
+  card_name?: string;
   amount: number;
   type: TransactionType;
   status: TransactionStatus;
@@ -59,8 +62,11 @@ export interface Card {
 }
 
 export interface DerivedData {
+  accounts: Account[];
   totalBalance: number;
   reservedBalance: number;
+  totalCardDebt: number;
+  netWorth: number;
   freeCapital: number;
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -74,6 +80,7 @@ export interface DerivedData {
   weeklyBurnRate: number;
   chartData: { month: string; receitas: number; despesas: number }[];
   spendingByCategory: { name: string; value: number; color: string }[];
+  incomeByCategory: { name: string; value: number; color: string }[];
   projectedTransactions: Transaction[];
   confirmedTransactions: Transaction[];
   pendingTransactions: Transaction[];
@@ -83,6 +90,9 @@ export interface DerivedData {
   completedGoalsCount: number;
   totalIncome: number;
   totalExpense: number;
+  incomeChange: number;
+  expenseChange: number;
   cardsWithDynamicBill: Card[];
   goalsWithDynamicAmount: Goal[];
+  categoriesWithSpent: (Category & { spent: number })[];
 }

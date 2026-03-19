@@ -36,6 +36,9 @@ interface FinanceContextType {
   createCategory: (data: any) => Promise<void>;
   updateCategory: (id: number, data: any) => Promise<void>;
   deleteCategory: (id: number) => Promise<void>;
+  
+  // Recalculate
+  recalculateAccountBalance: (id: number) => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -86,16 +89,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const goalsWithDynamicAmount = goals.map(goal => {
       const goalTransactions = transactions.filter(t => t.goal_id === goal.id);
       const currentAmount = goalTransactions.reduce((acc, curr) => {
-        if (curr.type === 'expense') return acc + Number(curr.amount); // Aporte na meta
-        if (curr.type === 'income') return acc - Number(curr.amount); // Retirada da meta
+        // Aporte na meta (dinheiro sai da conta e vai pra meta)
+        if (curr.type === 'expense' && curr.category === 'Aporte em Meta') return acc + Number(curr.amount); 
+        // Gasto real da meta (dinheiro sai da meta e vai pro mundo)
+        if (curr.type === 'expense' && curr.category !== 'Aporte em Meta') return acc - Number(curr.amount);
+        // Resgate da meta (dinheiro sai da meta e volta pra conta)
+        if (curr.type === 'income' && curr.category === 'Resgate de Meta') return acc - Number(curr.amount);
         return acc;
       }, 0);
       return { ...goal, current_amount: currentAmount };
     });
 
-    const totalBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+    // Identificar contas de cartão para excluí-las do saldo principal
+    const cardAccountIds = cards.map(c => c.account_id);
+    const normalAccounts = accounts.filter(a => !cardAccountIds.includes(a.id));
+    
+    const totalBalance = normalAccounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
     const reservedBalance = goalsWithDynamicAmount.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
-    const freeCapital = totalBalance; // O dinheiro já saiu da conta, então totalBalance já é o capital livre
+    
+    // Calcular faturas dos cartões dinamicamente (Saldo Devedor)
+    const cardsWithDynamicBill = cards.map(card => {
+      const cardTransactions = transactions.filter(t => t.card_id === card.id);
+      const totalSpent = cardTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((acc, curr) => acc + Number(curr.amount), 0);
+      
+      const totalPaid = cardTransactions
+        .filter(t => t.type === 'income')
+        .reduce((acc, curr) => acc + Number(curr.amount), 0);
+      
+      // Saldo devedor é o total gasto menos o total pago (pagamentos registrados como receita no cartão)
+      const outstandingBalance = Math.max(0, totalSpent - totalPaid);
+      
+      return { ...card, current_bill: outstandingBalance };
+    });
+
+    const totalCardDebt = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.current_bill), 0);
+    const netWorth = totalBalance + reservedBalance - totalCardDebt;
+    const freeCapital = totalBalance - totalCardDebt; // O dinheiro das metas já saiu como despesa, então subtraímos apenas as faturas em aberto
     
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -123,17 +154,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Pegar transações recorrentes únicas (por descrição, categoria e valor aproximado)
     const recurringTemplates = transactions.filter(t => t.recurrence && t.recurrence !== 'none');
     
-    // Agrupar por uma chave mais robusta para evitar fusão indevida
+    // Agrupar por descrição e categoria para pegar o template mais recente de cada recorrência
     const uniqueTemplates = Array.from(new Map(
-      recurringTemplates.map(t => [`${t.description}-${t.category}-${t.amount}`, t])
+      recurringTemplates
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .map(t => [`${t.description}-${t.category}`, t])
     ).values()) as Transaction[];
 
     uniqueTemplates.forEach(template => {
-      // Verifica se já ocorreu neste mês com base na descrição, categoria e valor
+      // Verifica se já ocorreu neste mês com base na descrição e categoria
+      // Ignoramos o valor exato pois pode variar (ex: conta de luz, reajuste salarial)
       const alreadyHappened = monthlyTransactions.some(t => 
         t.description === template.description && 
-        t.category === template.category &&
-        Math.abs(Number(t.amount) - Number(template.amount)) < 1 // Tolerância de 1 real
+        t.category === template.category
       );
 
       if (!alreadyHappened) {
@@ -212,13 +245,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       categoryMap[t.category].value += Number(t.amount);
     });
 
-    // Calcular faturas dos cartões dinamicamente
-    const cardsWithDynamicBill = cards.map(card => {
-      const cardTransactions = transactions.filter(t => t.card_id === card.id && t.type === 'expense');
-      const currentBill = cardTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
-      return { ...card, current_bill: currentBill };
-    });
-
     const totalCardLimit = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.limit), 0);
     const totalCardUsed = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.current_bill || 0), 0);
     const completedGoalsCount = goalsWithDynamicAmount.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length;
@@ -226,15 +252,70 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
     const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
 
+    // Calcular variação percentual em relação ao mês anterior
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const pm = prevMonthDate.getMonth();
+    const py = prevMonthDate.getFullYear();
+    
+    const prevMonthTransactions = transactions.filter(t => {
+      const td = getLocalDate(t.date);
+      return td.getMonth() === pm && td.getFullYear() === py;
+    });
+    
+    const prevMonthIncome = prevMonthTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const prevMonthExpense = prevMonthTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
+    
+    const incomeChange = prevMonthIncome > 0 ? ((monthlyIncome - prevMonthIncome) / prevMonthIncome) * 100 : 0;
+    const expenseChange = prevMonthExpense > 0 ? ((monthlyExpenses - prevMonthExpense) / prevMonthExpense) * 100 : 0;
+
+    // Calcular saldo projetado por conta
+    const accountsWithProjections = accounts.map(acc => {
+      // Transações pendentes e projetadas vinculadas a esta conta
+      const accPending = pendingTransactions.filter(t => t.account_id === acc.id || t.destination_account_id === acc.id);
+      const accProjected = projectedTransactions.filter(t => t.account_id === acc.id || t.destination_account_id === acc.id);
+      
+      const allFuture = [...accPending, ...accProjected];
+      
+      const futureIncome = allFuture.reduce((sum, t) => {
+        if (t.type === 'income' && t.account_id === acc.id) return sum + Number(t.amount);
+        if (t.type === 'transfer' && t.destination_account_id === acc.id) return sum + Number(t.amount);
+        return sum;
+      }, 0);
+      
+      const futureExpense = allFuture.reduce((sum, t) => {
+        if (t.type === 'expense' && t.account_id === acc.id) return sum + Number(t.amount);
+        if (t.type === 'transfer' && t.account_id === acc.id) return sum + Number(t.amount);
+        return sum;
+      }, 0);
+      
+      return {
+        ...acc,
+        projected_balance: Number(acc.balance) + futureIncome - futureExpense
+      };
+    });
+
+    const categoriesWithSpent = categories.map(cat => {
+      const spent = monthlyTransactions
+        .filter(t => t.category === cat.name && t.type === 'expense')
+        .reduce((acc, curr) => acc + Number(curr.amount), 0);
+      return { ...cat, spent };
+    });
+
+    const pendingIncome = pendingTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const pendingExpense = pendingTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
+
     return {
+      accounts: accountsWithProjections,
       totalBalance,
       reservedBalance,
+      totalCardDebt,
+      netWorth,
       freeCapital,
       monthlyIncome,
       monthlyExpenses,
       predictedIncome,
       predictedExpense,
-      projectedBalance: totalBalance + predictedIncome - predictedExpense,
+      projectedBalance: totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense,
       moneyVelocity,
       retentionRate,
       dailyAverageSpending,
@@ -242,6 +323,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       weeklyBurnRate,
       chartData,
       spendingByCategory: Object.values(categoryMap).sort((a, b) => b.value - a.value),
+      incomeByCategory: Object.values(transactions.filter(t => t.type === 'income').reduce((acc, t) => {
+        if (!acc[t.category]) {
+          const catInfo = categories.find(c => c.name === t.category);
+          acc[t.category] = { name: t.category, value: 0, color: catInfo?.color || '#00FF9F' };
+        }
+        acc[t.category].value += Number(t.amount);
+        return acc;
+      }, {} as Record<string, { name: string, value: number, color: string }>)).sort((a, b) => b.value - a.value),
       projectedTransactions,
       confirmedTransactions,
       pendingTransactions,
@@ -251,8 +340,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       completedGoalsCount,
       totalIncome,
       totalExpense,
+      incomeChange,
+      expenseChange,
       cardsWithDynamicBill,
-      goalsWithDynamicAmount
+      goalsWithDynamicAmount,
+      categoriesWithSpent
     };
   }, [accounts, transactions, categories, goals, cards]);
 
@@ -320,6 +412,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteAccount = async (id: number) => {
     await apiAction(`/api/accounts/${id}`, 'DELETE');
     setAccounts(prev => prev.filter(a => a.id !== id));
+    debouncedRefreshData();
+  };
+
+  const recalculateAccountBalance = async (id: number) => {
+    await apiAction(`/api/accounts/${id}/recalculate`, 'POST');
     debouncedRefreshData();
   };
   
@@ -399,6 +496,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createAccount,
       updateAccount,
       deleteAccount,
+      recalculateAccountBalance,
       createGoal,
       updateGoal,
       deleteGoal,

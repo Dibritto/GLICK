@@ -6,20 +6,34 @@ import {
   MoreHorizontal,
   Zap,
   Loader2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  CheckCircle2,
+  Clock,
+  History
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface AccountsViewProps {
   onAddAccount?: () => void;
   onEditAccount?: (account: any) => void;
+  onEditTransaction?: (transaction: any) => void;
 }
 
-const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount }) => {
-  const { accounts, isLoading, derivedData } = useFinance();
-  const { totalBalance } = derivedData;
+const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount, onEditTransaction }) => {
+  const { isLoading, derivedData } = useFinance();
+  const { accounts, totalBalance, netWorth, freeCapital, allTransactionsSorted } = derivedData;
+  const [selectedAccountId, setSelectedAccountId] = React.useState<number | null>(null);
+
+  const filteredTransactions = React.useMemo(() => {
+    if (selectedAccountId === null) return allTransactionsSorted.slice(0, 15);
+    return allTransactionsSorted.filter(t => t.account_id === selectedAccountId).slice(0, 15);
+  }, [allTransactionsSorted, selectedAccountId]);
+
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -64,8 +78,10 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={acc.id}
-                onClick={() => onEditAccount?.(acc)}
-                className="glass-panel technical-border p-6 rounded-lg group hover:border-brand-blue/30 transition-all relative overflow-hidden cursor-pointer"
+                onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
+                className={`glass-panel technical-border p-6 rounded-lg group transition-all relative overflow-hidden cursor-pointer ${
+                  selectedAccountId === acc.id ? 'border-brand-blue ring-1 ring-brand-blue/30' : 'hover:border-brand-blue/30'
+                }`}
               >
                 {/* Efeito de fundo com a cor do banco */}
                 <div 
@@ -77,7 +93,13 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
                   <div className="p-3 rounded-lg bg-white/5 border border-white/10">
                     <Building2 size={24} style={{ color: acc.color }} />
                   </div>
-                  <button className="p-2 text-gray-600 hover:text-white transition-colors">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditAccount?.(acc);
+                    }}
+                    className="p-2 text-gray-600 hover:text-white transition-colors"
+                  >
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
@@ -87,11 +109,19 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
                   <h3 className="text-lg font-bold text-white tracking-tight">{acc.name}</h3>
                 </div>
 
-                <div className="mt-6 relative z-10">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saldo Disponível</p>
-                  <p className="text-2xl font-mono font-bold text-white">
-                    {formatCurrency(acc.balance)}
-                  </p>
+                <div className="mt-6 grid grid-cols-2 gap-4 relative z-10">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saldo Real</p>
+                    <p className="text-xl font-mono font-bold text-white">
+                      {formatCurrency(acc.balance)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-brand-blue font-bold mb-1">Saldo Projetado</p>
+                    <p className="text-xl font-mono font-bold text-brand-blue">
+                      {formatCurrency(acc.projected_balance)}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between relative z-10">
@@ -126,20 +156,111 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
       </div>
 
       {/* Resumo de Liquidez */}
-      <section className="glass-panel technical-border p-8 rounded-lg space-y-6">
-        <div className="flex items-center gap-3">
-          <Wallet className="text-brand-blue" size={20} />
-          <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Consolidado de Liquidez</h3>
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 glass-panel technical-border p-8 rounded-lg space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <History className="text-brand-blue" size={20} />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">
+                {selectedAccount ? `Histórico: ${selectedAccount.name}` : 'Últimos Lançamentos (Geral)'}
+              </h3>
+            </div>
+            {selectedAccountId && (
+              <button 
+                onClick={() => setSelectedAccountId(null)}
+                className="text-[10px] uppercase tracking-widest text-brand-blue font-bold hover:underline"
+              >
+                Ver Tudo
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-brand-lead/10">
+                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Data</th>
+                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Descrição</th>
+                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Conta</th>
+                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-right">Valor</th>
+                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-center w-10">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-lead/5">
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-xs text-gray-600 uppercase tracking-widest">
+                      Nenhuma movimentação encontrada
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((t) => (
+                    <tr 
+                      key={t.id} 
+                      className="group hover:bg-white/5 transition-colors cursor-pointer"
+                      onClick={() => onEditTransaction?.(t)}
+                    >
+                      <td className="py-4 text-xs font-mono text-gray-400">{formatDate(t.date)}</td>
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            t.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-orange/10 text-brand-orange'
+                          }`}>
+                            {t.type === 'income' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
+                          </div>
+                          <span className="text-xs font-bold text-white tracking-tight">{t.description}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 text-[10px] text-gray-500 uppercase font-bold">{t.account_name}</td>
+                      <td className={`py-4 text-xs font-mono font-bold text-right ${
+                        t.type === 'income' ? 'text-brand-green' : 'text-brand-orange'
+                      }`}>
+                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                      </td>
+                      <td className="py-4 text-center">
+                        {t.status === 'confirmed' ? (
+                          <CheckCircle2 size={14} className="text-brand-green mx-auto" />
+                        ) : (
+                          <Clock size={14} className="text-brand-orange mx-auto opacity-50" />
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <p className="text-xs text-gray-500">Total Consolidado</p>
-              <p className="text-sm font-mono font-bold text-white">{formatCurrency(totalBalance)}</p>
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-8">
+          <div className="flex items-center gap-3">
+            <Wallet className="text-brand-blue" size={20} />
+            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Liquidez</h3>
+          </div>
+
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <p className="text-xs text-gray-500 uppercase tracking-widest">Patrimônio Líquido</p>
+                <p className="text-sm font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
+              </div>
+              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
+                <div className="h-full bg-brand-blue w-full" />
+              </div>
             </div>
-            <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
-              <div className="h-full bg-brand-blue w-full" />
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <p className="text-xs text-brand-blue uppercase tracking-widest font-bold">Capital Livre</p>
+                <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
+              </div>
+              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${netWorth > 0 ? (freeCapital / netWorth) * 100 : 0}%` }}
+                  className="h-full bg-brand-blue" 
+                />
+              </div>
             </div>
           </div>
         </div>

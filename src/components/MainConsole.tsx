@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   AreaChart, 
@@ -53,9 +53,18 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   onEditCategory,
   onEditTransaction
 }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const { transactions, accounts, goals, derivedData, isLoading } = useFinance();
   const { 
     totalBalance, 
+    reservedBalance,
+    totalCardDebt,
+    netWorth,
+    freeCapital,
     predictedIncome, 
     predictedExpense, 
     projectedBalance,
@@ -69,7 +78,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
 
   if (activeView === 'marketplace') return <ModuleMarketplace />;
   if (activeView === 'fluxo-caixa') return <MovementsView onAddTransaction={() => onOpenTransactionModal()} onEditTransaction={onEditTransaction} />;
-  if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onEditAccount={onEditAccount} />;
+  if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onEditAccount={onEditAccount} onEditTransaction={onEditTransaction} />;
   if (activeView === 'cartoes') return <CardsView onAddCard={onOpenCardModal} onEditCard={onEditCard} />;
   if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenTransactionModal('expense', true, goal)} onWithdrawFunds={(goal) => onOpenTransactionModal('income', true, goal)} />;
   if (activeView === 'categorias') return <CategoriesView onAddCategory={onOpenCategoryModal} onEditCategory={onEditCategory} />;
@@ -106,13 +115,31 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Console de Projeção Financeira</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Saldo Atual</p>
-            <p className="text-2xl font-mono font-bold text-white">{formatCurrency(totalBalance)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Patrimônio Líquido</p>
+            <p className="text-2xl font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green">
               <TrendingUp size={12} />
-              <span>Disponível em {accounts.length} contas</span>
+              <span>Total (Contas + Metas - Dívidas)</span>
+            </div>
+          </div>
+
+          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
+            <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2 font-bold">Capital Livre</p>
+            <p className="text-2xl font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
+            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
+              <ShieldCheck size={12} />
+              <span>Líquido de faturas</span>
+            </div>
+          </div>
+
+          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
+            <p className="text-[10px] uppercase tracking-widest text-brand-red mb-2 font-bold">Dívida em Cartões</p>
+            <p className="text-2xl font-mono font-bold text-brand-red">{formatCurrency(totalCardDebt)}</p>
+            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
+              <CreditCard size={12} className="text-brand-red" />
+              <span>Soma de todas as faturas</span>
             </div>
           </div>
 
@@ -153,8 +180,9 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Fluxo de Gastos Mensal</h2>
           </div>
           <div className="glass-panel technical-border p-6 rounded-lg h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#00FF9F" stopOpacity={0.3}/>
@@ -198,7 +226,8 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                   fill="url(#colorDespesas)" 
                 />
               </AreaChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            )}
           </div>
         </section>
 

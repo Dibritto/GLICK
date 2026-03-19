@@ -21,8 +21,18 @@ export const formatCurrency = (value: number, showSymbol: boolean = true): strin
  * @param dateString A string de data no formato ISO ou YYYY-MM-DD
  */
 export const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
   try {
-    const date = new Date(dateString);
+    // Se for apenas YYYY-MM-DD, evitamos o problema de fuso horário
+    // que ocorre ao usar new Date(dateString) diretamente.
+    if (dateString.includes('T')) {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('pt-BR').format(date);
+    }
+    
+    const [year, month, day] = dateString.split('-').map(Number);
+    // Note: month is 0-indexed in JS Date
+    const date = new Date(year, month - 1, day);
     return new Intl.DateTimeFormat('pt-BR').format(date);
   } catch (e) {
     return dateString;

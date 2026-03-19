@@ -7,6 +7,7 @@ import {
   ArrowUpCircle, 
   ArrowDownCircle, 
   ArrowLeftRight,
+  CreditCard,
   MoreVertical,
   Calendar,
   Tag,
@@ -36,7 +37,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   onAddTransaction,
   onEditTransaction
 }) => {
-  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction } = useFinance();
+  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction } = useFinance();
   const { projectedTransactions, allTransactionsSorted, totalIncome, totalExpense } = derivedData;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>(initialTypeFilter as any);
@@ -44,12 +45,13 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
-  const handleDeleteClick = (id: string) => {
-    if (id.startsWith('projected-')) {
+  const handleDeleteClick = (id: string | number) => {
+    const idStr = String(id);
+    if (idStr.startsWith('projected-')) {
       toast.error('Não é possível deletar uma transação projetada. Registre-a primeiro.');
       return;
     }
-    setTransactionToDelete(id);
+    setTransactionToDelete(idStr);
     setShowDeleteConfirm(true);
   };
 
@@ -184,15 +186,15 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={m.id} 
                       onClick={() => {
-                        if (!m.id.startsWith('projected-')) {
+                        if (!String(m.id).startsWith('projected-')) {
                           onEditTransaction?.(m);
                         }
                       }}
-                      className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${m.id.startsWith('projected-') ? 'opacity-50 grayscale-[0.5]' : ''}`}
+                      className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${String(m.id).startsWith('projected-') ? 'opacity-50 grayscale-[0.5]' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className={`w-2 h-2 rounded-full ${
-                          m.id.startsWith('projected-') ? 'bg-brand-blue border border-brand-blue/50 animate-pulse' :
+                          String(m.id).startsWith('projected-') ? 'bg-brand-blue border border-brand-blue/50 animate-pulse' :
                           m.status === 'confirmed' ? 'bg-brand-green shadow-[0_0_8px_rgba(0,255,159,0.5)]' : 
                           'bg-brand-orange animate-pulse'
                         }`} />
@@ -209,13 +211,16 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                           {m.recurrence && m.recurrence !== 'none' && (
                             <Clock size={12} className="text-brand-blue opacity-70" />
                           )}
-                          {m.id.startsWith('projected-') && (
+                          {String(m.id).startsWith('projected-') && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Projetado</span>
                           )}
                           {m.goal_id && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white font-bold uppercase tracking-tighter flex items-center gap-1">
                               <Target size={10} /> Meta
                             </span>
+                          )}
+                          {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-orange/10 text-brand-orange font-bold uppercase tracking-tighter">Pendente</span>
                           )}
                         </div>
                       </td>
@@ -228,15 +233,36 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-gray-500 text-xs">
-                          <Wallet size={12} className="opacity-50" />
-                          {m.account_name}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-gray-500 text-xs">
+                            <Wallet size={12} className="opacity-50" />
+                            {m.account_name}
+                          </div>
+                          {m.card_name && (
+                            <div className="flex items-center gap-2 text-brand-lead text-[10px] font-bold uppercase tracking-wider">
+                              <CreditCard size={10} className="opacity-70" />
+                              {m.card_name}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className={`px-6 py-4 text-sm font-mono font-bold text-right ${m.type === 'income' ? 'text-brand-green' : m.type === 'expense' ? 'text-brand-red' : 'text-brand-blue'}`}>
-                        <div className="flex items-center justify-end gap-2">
-                          {m.type === 'income' ? <ArrowUpCircle size={14} /> : m.type === 'expense' ? <ArrowDownCircle size={14} /> : <ArrowLeftRight size={14} />}
-                          {m.type === 'income' ? '+' : m.type === 'expense' ? '-' : '⇄'} {formatCurrency(m.amount)}
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center justify-end gap-2">
+                            {m.type === 'income' ? <ArrowUpCircle size={14} /> : m.type === 'expense' ? <ArrowDownCircle size={14} /> : <ArrowLeftRight size={14} />}
+                            {m.type === 'income' ? '+' : m.type === 'expense' ? '-' : '⇄'} {formatCurrency(m.amount)}
+                          </div>
+                          {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateTransaction(m.id, { ...m, status: 'confirmed' });
+                              }}
+                              className="text-[9px] text-brand-blue hover:text-white uppercase font-bold tracking-widest border border-brand-blue/30 px-2 py-0.5 rounded hover:bg-brand-blue/20 transition-all"
+                            >
+                              Confirmar Agora
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">

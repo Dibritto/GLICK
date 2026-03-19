@@ -15,7 +15,14 @@ const dbConfig = useSqlite
       connection: {
         filename: './data.sqlite'
       },
-      useNullAsDefault: true
+      useNullAsDefault: true,
+      pool: {
+        afterCreate: (conn: any, cb: any) => {
+          conn.pragma('journal_mode = WAL');
+          conn.pragma('foreign_keys = ON');
+          cb(null, conn);
+        }
+      }
     }
   : {
       client: 'mysql2',

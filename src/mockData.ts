@@ -9,8 +9,8 @@ export const MOCK_CATEGORIES: Category[] = [
 ];
 
 export const MOCK_ACCOUNTS: Account[] = [
-  { id: 1, name: 'Nubank', type: 'checking', balance: 2500.50, color: '#8A05BE' },
-  { id: 2, name: 'Itaú', type: 'checking', balance: 12000.00, color: '#EC7000' },
+  { id: 1, name: 'Nubank', type: 'checking', balance: 2500.50, initial_balance: 2500.50, color: '#8A05BE' },
+  { id: 2, name: 'Itaú', type: 'checking', balance: 12000.00, initial_balance: 12000.00, color: '#EC7000' },
 ];
 
 export const MOCK_TRANSACTIONS: Transaction[] = [

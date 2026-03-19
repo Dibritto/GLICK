@@ -6,7 +6,8 @@ import {
   Check, 
   Loader2, 
   Palette,
-  Type
+  Type,
+  TrendingDown
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
   const [name, setName] = useState(editingCategory?.name || '');
   const [type, setType] = useState(editingCategory?.type || 'expense');
   const [color, setColor] = useState(editingCategory?.color || '#2CC7FF');
+  const [budget, setBudget] = useState(editingCategory?.budget || 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -35,10 +37,12 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
       setName(editingCategory.name);
       setType(editingCategory.type);
       setColor(editingCategory.color);
+      setBudget(editingCategory.budget || 0);
     } else {
       setName('');
       setType('expense');
       setColor('#2CC7FF');
+      setBudget(0);
     }
   }, [editingCategory]);
 
@@ -47,7 +51,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
     setIsSubmitting(true);
     
     try {
-      const data = { name, type, color };
+      const data = { name, type, color, budget: Number(budget) };
 
       if (editingCategory) {
         await updateCategory(editingCategory.id, data);
@@ -149,6 +153,27 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
                 </div>
               </div>
             </div>
+
+            {type === 'expense' && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
+                  <TrendingDown size={12} /> Limite de Gastos (Orçamento)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-bold">R$</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    placeholder="0,00"
+                    value={budget}
+                    onChange={(e) => setBudget(Number(e.target.value))}
+                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
+                  />
+                </div>
+                <p className="text-[9px] text-gray-600 italic">Defina quanto você planeja gastar nesta categoria por mês.</p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">

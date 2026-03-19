@@ -36,7 +36,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   prefilledGoal
 }) => {
   const { token } = useAuth();
-  const { accounts, cards, goals, refreshData, createTransaction, updateTransaction, deleteTransaction } = useFinance();
+  const { accounts, cards, goals, categories, refreshData, createTransaction, updateTransaction, deleteTransaction } = useFinance();
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>(initialType);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -46,6 +46,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   const [cardId, setCardId] = useState('');
   const [goalId, setGoalId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [status, setStatus] = useState<'confirmed' | 'pending'>('confirmed');
   const [recurrence, setRecurrence] = useState<'none' | 'monthly' | 'weekly' | 'yearly'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,7 +62,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setDestinationAccountId(editingTransaction.destination_account_id?.toString() || '');
       setCardId(editingTransaction.card_id?.toString() || '');
       setGoalId(editingTransaction.goal_id?.toString() || '');
-      setDate(new Date(editingTransaction.date).toISOString().split('T')[0]);
+      setStatus(editingTransaction.status as 'confirmed' | 'pending' || 'confirmed');
+      // Evitar problemas de fuso horário ao carregar a data para o input
+      const transactionDate = editingTransaction.date;
+      if (transactionDate.includes('T')) {
+        setDate(new Date(transactionDate).toISOString().split('T')[0]);
+      } else {
+        setDate(transactionDate);
+      }
       setRecurrence(editingTransaction.recurrence || 'none');
     } else {
       setType(initialType);
@@ -73,13 +81,35 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setCardId('');
       setGoalId(prefilledGoal ? prefilledGoal.id.toString() : '');
       if (prefilledGoal) {
-        setCategory('Meta');
+        setCategory(initialType === 'income' ? 'Resgate de Meta' : 'Aporte em Meta');
         setDescription(initialType === 'income' ? `Resgate: ${prefilledGoal.name}` : `Aporte: ${prefilledGoal.name}`);
       }
-      setDate(new Date().toISOString().split('T')[0]);
+      // Garantir que a data inicial seja a data local correta (YYYY-MM-DD)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      setDate(`${year}-${month}-${day}`);
+      setStatus('confirmed');
       setRecurrence('none');
     }
   }, [editingTransaction, initialType, prefilledGoal]);
+
+  // Efeito para auto-definir status baseado na data
+  useEffect(() => {
+    if (date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const selectedDate = new Date(date + 'T12:00:00'); // Usar meio-dia para evitar problemas de fuso
+      
+      if (selectedDate > today) {
+        setStatus('pending');
+      } else if (!editingTransaction) {
+        setStatus('confirmed');
+      }
+    }
+  }, [date, editingTransaction]);
 
   const handleDelete = async () => {
     if (!editingTransaction) return;
@@ -128,7 +158,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         amount: Number(amount),
         date,
         description,
-        status: 'confirmed',
+        status,
         recurrence,
         card_id: type === 'expense' && cardId ? Number(cardId) : null,
         goal_id: (type === 'expense' || type === 'income') && goalId ? Number(goalId) : null
@@ -230,6 +260,29 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             </div>
           </div>
 
+          {/* Status (Apenas se não for cartão) */}
+          {!cardId && (
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-white uppercase tracking-wider">Status da Transação</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                  {status === 'confirmed' ? 'Confirmada (Afeta o saldo atual)' : 'Pendente (Projeção futura)'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatus(status === 'confirmed' ? 'pending' : 'confirmed')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                  status === 'confirmed' 
+                    ? 'bg-brand-green/20 text-brand-green border border-brand-green/30' 
+                    : 'bg-brand-orange/20 text-brand-orange border border-brand-orange/30'
+                }`}
+              >
+                {status === 'confirmed' ? 'Confirmada' : 'Pendente'}
+              </button>
+            </div>
+          )}
+
           {/* Campos de Formulário */}
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -259,12 +312,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
                   >
                     <option value="" disabled className="bg-brand-gray-deep">Selecionar...</option>
-                    <option value="Alimentação" className="bg-brand-gray-deep">Alimentação</option>
-                    <option value="Transporte" className="bg-brand-gray-deep">Transporte</option>
-                    <option value="Moradia" className="bg-brand-gray-deep">Moradia</option>
-                    <option value="Lazer" className="bg-brand-gray-deep">Lazer</option>
-                    <option value="Renda" className="bg-brand-gray-deep">Renda</option>
-                    <option value="Outros" className="bg-brand-gray-deep">Outros</option>
+                    {categories.filter(c => c.type === type).map(c => (
+                      <option key={c.id} value={c.name} className="bg-brand-gray-deep">{c.name}</option>
+                    ))}
+                    {category && !categories.some(c => c.name === category) && category !== 'Aporte em Meta' && category !== 'Resgate de Meta' && (
+                      <option value={category} className="bg-brand-gray-deep">{category} (Excluída)</option>
+                    )}
+                    {(prefilledGoal || category === 'Aporte em Meta') && type === 'expense' && <option value="Aporte em Meta" className="bg-brand-gray-deep">Aporte em Meta</option>}
+                    {(prefilledGoal || category === 'Resgate de Meta') && type === 'income' && <option value="Resgate de Meta" className="bg-brand-gray-deep">Resgate de Meta</option>}
                   </select>
                 </div>
               ) : (

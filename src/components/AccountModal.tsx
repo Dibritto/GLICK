@@ -22,12 +22,14 @@ interface AccountModalProps {
 
 const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAccount }) => {
   const { token } = useAuth();
-  const { createAccount, updateAccount, deleteAccount } = useFinance();
+  const { createAccount, updateAccount, deleteAccount, recalculateAccountBalance } = useFinance();
   const [name, setName] = useState(editingAccount?.name || '');
   const [type, setType] = useState(editingAccount?.type || 'checking');
   const [balance, setBalance] = useState(editingAccount?.balance.toString() || '');
+  const [initialBalance, setInitialBalance] = useState(editingAccount?.initial_balance?.toString() || '0');
   const [color, setColor] = useState(editingAccount?.color || '#2CC7FF');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -36,11 +38,13 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
       setName(editingAccount.name);
       setType(editingAccount.type);
       setBalance(editingAccount.balance.toString());
+      setInitialBalance(editingAccount.initial_balance?.toString() || '0');
       setColor(editingAccount.color);
     } else {
       setName('');
       setType('checking');
-      setBalance('');
+      setBalance('0');
+      setInitialBalance('0');
       setColor('#2CC7FF');
     }
   }, [editingAccount]);
@@ -54,6 +58,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
         name,
         type,
         balance: Number(balance),
+        initial_balance: Number(initialBalance),
         color
       };
 
@@ -146,19 +151,56 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Saldo {editingAccount ? 'Atual' : 'Inicial'}</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono font-bold text-gray-600">R$</span>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
-                  placeholder="0,00"
-                  value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-12 pr-4 text-lg font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Saldo Inicial</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-gray-600">R$</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    required
+                    value={initialBalance}
+                    onChange={(e) => setInitialBalance(e.target.value)}
+                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-2 pl-8 pr-3 text-xs font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center justify-between">
+                  Saldo Atual
+                  {editingAccount && (
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        setIsRecalculating(true);
+                        try {
+                          await recalculateAccountBalance(editingAccount.id);
+                          toast.success('Saldo recalculado com sucesso');
+                        } catch (err) {
+                          toast.error('Erro ao recalcular saldo');
+                        } finally {
+                          setIsRecalculating(false);
+                        }
+                      }}
+                      className="text-brand-blue hover:underline flex items-center gap-1"
+                    >
+                      {isRecalculating ? <Loader2 size={10} className="animate-spin" /> : 'Recalcular'}
+                    </button>
+                  )}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-mono font-bold text-gray-600">R$</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    required
+                    value={balance}
+                    onChange={(e) => setBalance(e.target.value)}
+                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-2 pl-8 pr-3 text-xs font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
+                  />
+                </div>
               </div>
             </div>
           </div>

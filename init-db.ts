@@ -24,10 +24,20 @@ async function init() {
         table.string('name').notNullable();
         table.string('type').notNullable(); // checking, savings, etc
         table.decimal('balance', 15, 2).defaultTo(0);
+        table.decimal('initial_balance', 15, 2).defaultTo(0);
         table.string('color').defaultTo('#2CC7FF');
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [accounts] criada.');
+    } else {
+      // Adicionar coluna se não existir
+      const hasInitialBalance = await db.schema.hasColumn('accounts', 'initial_balance');
+      if (!hasInitialBalance) {
+        await db.schema.alterTable('accounts', table => {
+          table.decimal('initial_balance', 15, 2).defaultTo(0);
+        });
+        console.log('✅ Coluna [initial_balance] adicionada à tabela [accounts].');
+      }
     }
 
     // Tabela de Transações
@@ -43,6 +53,8 @@ async function init() {
         table.string('status').defaultTo('confirmed');
         table.string('recurrence').nullable(); // 'none', 'monthly', 'weekly', etc.
         table.integer('destination_account_id').unsigned().references('id').inTable('accounts'); // Para transferências
+        table.integer('card_id').unsigned().references('id').inTable('cards').nullable();
+        table.integer('goal_id').unsigned().references('id').inTable('goals').nullable();
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [transactions] criada.');
