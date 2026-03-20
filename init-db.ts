@@ -44,6 +44,7 @@ async function init() {
     if (!await db.schema.hasTable('transactions')) {
       await db.schema.createTable('transactions', table => {
         table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
         table.integer('account_id').unsigned().references('id').inTable('accounts');
         table.string('type').notNullable(); // income, expense, transfer
         table.string('category').notNullable();
@@ -138,6 +139,90 @@ async function init() {
       console.log('✅ Tabela [user_modules] criada.');
     }
 
+    // Tabela de Ativos (Crypto, Ações, etc)
+    if (!await db.schema.hasTable('assets')) {
+      await db.schema.createTable('assets', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.string('name').notNullable();
+        table.string('symbol').notNullable(); // BTC, PETR4, etc
+        table.string('type').notNullable(); // crypto, stock, fixed_income
+        table.decimal('quantity', 20, 8).notNullable();
+        table.decimal('average_price', 20, 8).notNullable();
+        table.decimal('current_price', 20, 8).nullable();
+        table.string('institution').nullable(); // Binance, XP, etc
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [assets] criada.');
+    }
+
+    // Tabela de Transações de Cripto
+    if (!await db.schema.hasTable('crypto_transactions')) {
+      await db.schema.createTable('crypto_transactions', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.integer('asset_id').unsigned().references('id').inTable('assets');
+        table.string('type').notNullable(); // buy, sell, transfer
+        table.decimal('quantity', 20, 8).notNullable();
+        table.decimal('price_at_time', 20, 8).notNullable();
+        table.decimal('fee', 20, 8).defaultTo(0);
+        table.date('date').notNullable();
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [crypto_transactions] criada.');
+    }
+
+    // Tabela de Transações de Investimentos
+    if (!await db.schema.hasTable('investment_transactions')) {
+      await db.schema.createTable('investment_transactions', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.integer('asset_id').unsigned().references('id').inTable('assets');
+        table.string('type').notNullable(); // buy, sell, yield, dividend
+        table.decimal('quantity', 20, 8).notNullable();
+        table.decimal('price_at_time', 20, 8).notNullable();
+        table.decimal('fee', 20, 8).defaultTo(0);
+        table.date('date').notNullable();
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [investment_transactions] criada.');
+    }
+
+    // Tabela de Transações Recorrentes
+    if (!await db.schema.hasTable('recurring_transactions')) {
+      await db.schema.createTable('recurring_transactions', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.integer('account_id').unsigned().references('id').inTable('accounts');
+        table.string('type').notNullable(); // income, expense
+        table.string('category').notNullable();
+        table.decimal('amount', 15, 2).notNullable();
+        table.string('frequency').notNullable(); // monthly, weekly, yearly
+        table.integer('day_of_month').defaultTo(1);
+        table.string('description');
+        table.date('start_date').notNullable();
+        table.date('end_date').nullable();
+        table.boolean('active').defaultTo(true);
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [recurring_transactions] criada.');
+    }
+
+    // Tabela de Projeções (Snapshots)
+    if (!await db.schema.hasTable('forecasts')) {
+      await db.schema.createTable('forecasts', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users');
+        table.date('forecast_date').notNullable();
+        table.decimal('projected_balance', 15, 2).notNullable();
+        table.decimal('projected_income', 15, 2).defaultTo(0);
+        table.decimal('projected_expense', 15, 2).defaultTo(0);
+        table.json('details'); // Detalhes da projeção (quais transações incluídas)
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [forecasts] criada.');
+    }
+
     // --- SEEDS INICIAIS (Apenas se as tabelas estiverem vazias) ---
     
     const usersCount = await db('users').count('id as count').first();
@@ -161,11 +246,22 @@ async function init() {
     const modulesCount = await db('modules').count('id as count').first();
     if (modulesCount?.count === 0) {
       await db('modules').insert([
-        { name: 'Investimentos Pro', slug: 'investments', description: 'Gestão avançada de ativos e corretoras', icon: 'TrendingUp', price: 29.90 },
-        { name: 'Relatórios IA', slug: 'ai-reports', description: 'Insights preditivos baseados no seu comportamento', icon: 'Zap', price: 19.90 },
-        { name: 'Multi-Contas', slug: 'multi-accounts', description: 'Gerencie contas de terceiros ou empresas', icon: 'Users', price: 49.90 }
+        { name: 'Financeiro', slug: 'core', description: 'Gestão essencial de contas, transações e metas', icon: 'LayoutDashboard', price: 0 },
+        { name: 'Cripto', slug: 'crypto', description: 'Gestão de ativos digitais e P&L', icon: 'Zap', price: 29.90 },
+        { name: 'Investimentos', slug: 'investments', description: 'Renda fixa, ações e fundos', icon: 'TrendingUp', price: 39.90 }
       ]);
-      console.log('🌱 Seed: Módulos do marketplace criados.');
+      console.log('🌱 Seed: Módulos do marketplace criados conforme documentação.');
+    }
+
+    const userModulesCount = await db('user_modules').count('id as count').first();
+    if (userModulesCount?.count === 0) {
+      await db('user_modules').insert({
+        user_id: 1,
+        module_id: 1, // Financeiro
+        status: 'active',
+        activated_at: new Date().toISOString()
+      });
+      console.log('🌱 Seed: Módulo Financeiro ativado para o usuário padrão.');
     }
 
     const categoriesCount = await db('categories').count('id as count').first();
@@ -178,6 +274,24 @@ async function init() {
         { user_id: 1, name: 'Renda', type: 'income', icon: '💰', color: '#2ECC71', budget: 0 }
       ]);
       console.log('🌱 Seed: Categorias iniciais criadas.');
+    }
+
+    const transactionsCount = await db('transactions').count('id as count').first();
+    if (transactionsCount?.count === 0) {
+      const today = new Date();
+      const currentMonth = today.toISOString().split('T')[0].substring(0, 7);
+      
+      await db('transactions').insert([
+        { user_id: 1, account_id: 1, type: 'income', category: 'Renda', amount: 5000.00, date: `${currentMonth}-05`, description: 'Salário Mensal', status: 'confirmed' },
+        { user_id: 1, account_id: 1, type: 'expense', category: 'Moradia', amount: 2200.00, date: `${currentMonth}-10`, description: 'Aluguel', status: 'confirmed' },
+        { user_id: 1, account_id: 1, type: 'expense', category: 'Alimentação', amount: 450.00, date: `${currentMonth}-12`, description: 'Supermercado', status: 'confirmed' },
+        { user_id: 1, account_id: 1, type: 'expense', category: 'Transporte', amount: 120.00, date: `${currentMonth}-15`, description: 'Combustível', status: 'confirmed' },
+        { user_id: 1, account_id: 1, type: 'expense', category: 'Lazer', amount: 80.00, date: `${currentMonth}-18`, description: 'Cinema', status: 'confirmed' }
+      ]);
+      console.log('🌱 Seed: Transações iniciais criadas.');
+      
+      // Atualizar saldos das contas
+      await db('accounts').where('id', 1).update({ balance: 2500.50 + 5000 - 2200 - 450 - 120 - 80 });
     }
 
     console.log('🚀 Banco de dados pronto para uso!');

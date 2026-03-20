@@ -9,6 +9,8 @@ const bcrypt = (bcryptjs as any).default || bcryptjs;
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import db from './src/lib/db.js';
+import { calculateCoreStats, validateAndRegisterTransaction } from './src/lib/financeEngine.js';
+import { getUserModules, activateModule, checkModuleAccess } from './src/lib/moduleManager.js';
 
 dotenv.config();
 
@@ -147,10 +149,11 @@ async function startServer() {
 
   app.post('/api/auth/login', validate(loginSchema), async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      const user = await db('users').where('email', email).first();
+      const user = await db('users').where('email', normalizedEmail).first();
       if (!user) {
-        console.log(`Login failed: User ${email} not found`);
+        console.log(`Login failed: User ${normalizedEmail} not found`);
         return res.status(400).json({ error: 'Usuário não encontrado' });
       }
 
@@ -174,6 +177,33 @@ async function startServer() {
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
+    }
+  });
+
+  // --- API ROUTES (MODULES) ---
+  
+  app.get('/api/modules', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const modules = await getUserModules(userId);
+      res.json(modules);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar módulos' });
+    }
+  });
+
+  app.post('/api/modules/:slug/activate', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      const { slug } = req.params;
+      const { isTrial } = req.body;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      
+      const result = await activateModule(userId, slug, isTrial !== false);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao ativar módulo' });
     }
   });
 
@@ -204,71 +234,15 @@ async function startServer() {
 
   // 3. Criar Transação
   app.post('/api/transactions', authenticateToken, validate(transactionSchema), async (req: AuthRequest, res) => {
-    const { account_id, type, category, amount, date, description, status, destination_account_id, recurrence, card_id, goal_id } = req.body;
     const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Não autorizado' });
     
     try {
-      // Verificar se a conta pertence ao usuário
-      const account = await db('accounts').where({ id: account_id, user_id: userId }).first();
-      if (!account) return res.status(403).json({ error: 'Acesso negado à conta de origem' });
-
-      if (card_id) {
-        const card = await db('cards').where({ id: card_id, user_id: userId }).first();
-        if (!card) return res.status(403).json({ error: 'Acesso negado ao cartão' });
-      }
-      
-      if (goal_id) {
-        const goal = await db('goals').where({ id: goal_id, user_id: userId }).first();
-        if (!goal) return res.status(403).json({ error: 'Acesso negado à meta' });
-      }
-
-      if (type === 'transfer') {
-        if (!destination_account_id) return res.status(400).json({ error: 'Conta de destino necessária para transferência' });
-        const destAccount = await db('accounts').where({ id: destination_account_id, user_id: userId }).first();
-        if (!destAccount) return res.status(403).json({ error: 'Acesso negado à conta de destino' });
-
-        await db.transaction(async (trx) => {
-          // Registro da saída
-          await trx('transactions').insert({
-            account_id, 
-            type: 'transfer', 
-            category: 'Transferência', 
-            amount, 
-            date, 
-            description: description || `Transferência para ${destAccount.name}`, 
-            status: status || 'confirmed',
-            destination_account_id,
-            recurrence: recurrence || 'none'
-          });
-
-          // Atualizar saldos apenas se confirmado
-          if ((status || 'confirmed') === 'confirmed') {
-            await trx('accounts').where('id', account_id).decrement('balance', amount);
-            await trx('accounts').where('id', destination_account_id).increment('balance', amount);
-          }
-        });
-      } else {
-        await db.transaction(async (trx) => {
-          const finalStatus = status || 'confirmed';
-          await trx('transactions').insert({
-            account_id, type, category, amount, date, description, status: finalStatus, recurrence: recurrence || 'none', card_id: card_id || null, goal_id: goal_id || null
-          });
-
-          // Se for gasto no cartão, não desconta da conta agora.
-          // Só ajusta saldo se for confirmado e não for cartão
-          if (!card_id && finalStatus === 'confirmed') {
-            const adjustment = type === 'income' ? amount : -amount;
-            await trx('accounts')
-              .where('id', account_id)
-              .increment('balance', adjustment);
-          }
-        });
-      }
-
-      res.status(201).json({ message: 'Transação registrada com sucesso' });
-    } catch (error) {
+      const id = await validateAndRegisterTransaction(userId, req.body);
+      res.status(201).json({ id, message: 'Transação registrada com sucesso' });
+    } catch (error: any) {
       console.error('Erro ao registrar transação:', error);
-      res.status(500).json({ error: 'Erro ao registrar transação' });
+      res.status(500).json({ error: error.message || 'Erro ao registrar transação' });
     }
   });
 
@@ -458,61 +432,6 @@ async function startServer() {
     } catch (error) {
       console.error('Erro ao excluir conta:', error);
       res.status(500).json({ error: 'Erro ao excluir conta' });
-    }
-  });
-
-  // 5. Catálogo de Módulos
-  app.get('/api/modules', authenticateToken, async (req, res) => {
-    try {
-      const modules = await db('modules').select('*');
-      res.json(modules);
-    } catch (error) {
-      res.status(500).json({ error: 'Erro ao buscar catálogo de módulos' });
-    }
-  });
-
-  // 6. Módulos Instalados pelo Usuário
-  app.get('/api/user/modules', authenticateToken, async (req: AuthRequest, res) => {
-    const userId = req.user?.id;
-    try {
-      const installed = await db('user_modules')
-        .join('modules', 'user_modules.module_id', 'modules.id')
-        .where('user_modules.user_id', userId)
-        .select('modules.*', 'user_modules.status', 'user_modules.trial_ends_at');
-      res.json(installed);
-    } catch (error) {
-      res.status(500).json({ error: 'Erro ao buscar módulos do usuário' });
-    }
-  });
-
-  // 7. Instalar/Ativar Módulo (Trial)
-  app.post('/api/user/modules/install', authenticateToken, async (req: AuthRequest, res) => {
-    const { module_id } = req.body;
-    const userId = req.user?.id;
-
-    try {
-      const module = await db('modules').where('id', module_id).first();
-      if (!module) return res.status(404).json({ error: 'Módulo não encontrado' });
-
-      // Verificar se já tem o módulo
-      const existing = await db('user_modules').where({ user_id: userId, module_id }).first();
-      if (existing) return res.status(400).json({ error: 'Módulo já instalado' });
-
-      const trialDays = module.trial_days || 7;
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
-
-      await db('user_modules').insert({
-        user_id: userId,
-        module_id,
-        status: 'trial',
-        trial_ends_at: trialEndsAt,
-        activated_at: new Date()
-      });
-
-      res.json({ message: `Módulo ${module.name} instalado em modo de teste!` });
-    } catch (error) {
-      res.status(500).json({ error: 'Erro ao instalar módulo' });
     }
   });
 
@@ -755,14 +674,19 @@ async function startServer() {
       if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
 
       await db.transaction(async (trx) => {
-        // Reverter saldo da conta apenas se confirmado e não for de cartão
-        if (!transaction.card_id && transaction.status === 'confirmed') {
-          const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
-          await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
-          
-          // Se for transferência, reverter conta destino também
-          if (transaction.type === 'transfer' && transaction.destination_account_id) {
-            await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+        // Reverter saldo da conta apenas se confirmado
+        if (transaction.status === 'confirmed') {
+          if (transaction.card_id) {
+            // Reverter fatura do cartão
+            await trx('cards').where('id', transaction.card_id).decrement('current_bill', transaction.amount);
+          } else {
+            const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
+            await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
+            
+            // Se for transferência, reverter conta destino também
+            if (transaction.type === 'transfer' && transaction.destination_account_id) {
+              await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+            }
           }
         }
 
@@ -772,6 +696,357 @@ async function startServer() {
       res.json({ message: 'Transação removida com sucesso' });
     } catch (error) {
       res.status(500).json({ error: 'Erro ao deletar transação' });
+    }
+  });
+
+  // --- CORE FINANCE ENGINE ENDPOINTS ---
+  app.get('/api/finance/core-stats', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      
+      const stats = await calculateCoreStats(userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao calcular estatísticas core' });
+    }
+  });
+
+  app.patch('/api/transactions/:id/reconcile', authenticateToken, async (req: AuthRequest, res) => {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    try {
+      const updated = await db('transactions')
+        .where({ id, user_id: userId })
+        .update({ status: 'reconciled' });
+      
+      if (!updated) return res.status(404).json({ error: 'Transação não encontrada' });
+      res.json({ success: true, status: 'reconciled' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao conciliar transação' });
+    }
+  });
+
+  // --- RECURRING TRANSACTIONS ---
+  app.get('/api/recurring-transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const items = await db('recurring_transactions').where('user_id', userId);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar transações recorrentes' });
+    }
+  });
+
+  app.post('/api/recurring-transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const [id] = await db('recurring_transactions').insert({
+        ...req.body,
+        user_id: userId
+      });
+      res.status(201).json({ id });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar transação recorrente' });
+    }
+  });
+
+  app.delete('/api/recurring-transactions/:id', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      await db('recurring_transactions').where({ id: req.params.id, user_id: userId }).delete();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao excluir transação recorrente' });
+    }
+  });
+
+  // --- FORECASTS ---
+  app.get('/api/forecasts', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const items = await db('forecasts').where('user_id', userId);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar previsões' });
+    }
+  });
+
+  app.post('/api/forecasts', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const [id] = await db('forecasts').insert({
+        ...req.body,
+        user_id: userId
+      });
+      res.status(201).json({ id });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao criar previsão' });
+    }
+  });
+
+  app.delete('/api/forecasts/:id', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      await db('forecasts').where({ id: req.params.id, user_id: userId }).delete();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao excluir previsão' });
+    }
+  });
+
+  // --- CRYPTO API ---
+  app.get('/api/crypto/assets', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const assets = await db('assets').where({ user_id: userId, type: 'crypto' });
+      res.json(assets);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar ativos' });
+    }
+  });
+
+  app.post('/api/crypto/transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      
+      const { symbol, name, type, quantity, price_at_time, fee, date, account_id } = req.body;
+      
+      await db.transaction(async (trx) => {
+        let asset = await trx('assets').where({ user_id: userId, symbol, type: 'crypto' }).first();
+        
+        if (!asset) {
+          if (type !== 'buy') throw new Error('Ativo não encontrado para venda');
+          const [assetId] = await trx('assets').insert({
+            user_id: userId,
+            name,
+            symbol,
+            type: 'crypto',
+            quantity: 0,
+            average_price: 0,
+            current_price: price_at_time
+          });
+          asset = { id: assetId, quantity: 0, average_price: 0 };
+        }
+        
+        const q = Number(quantity);
+        const p = Number(price_at_time);
+        const f = Number(fee || 0);
+        const totalValue = (q * p) + (type === 'buy' ? f : -f);
+        
+        // Update core balance if account_id is provided
+        if (account_id) {
+          const account = await trx('accounts').where({ id: account_id, user_id: userId }).first();
+          if (!account) throw new Error('Conta não encontrada');
+          
+          const transType = type === 'buy' ? 'expense' : 'income';
+          
+          await trx('transactions').insert({
+            user_id: userId,
+            account_id,
+            type: transType,
+            amount: totalValue,
+            description: `${type === 'buy' ? 'Compra' : 'Venda'} de ${q} ${symbol}`,
+            category: 'Investimentos',
+            date,
+            status: 'completed',
+            reconciled: 1
+          });
+          
+          const newBalance = transType === 'income' 
+            ? Number(account.balance) + totalValue 
+            : Number(account.balance) - totalValue;
+            
+          await trx('accounts').where('id', account_id).update({ balance: newBalance });
+        }
+        
+        let newQuantity = Number(asset.quantity);
+        let newAvgPrice = Number(asset.average_price);
+        
+        if (type === 'buy') {
+          const totalCost = (newQuantity * newAvgPrice) + (q * p);
+          newQuantity += q;
+          newAvgPrice = newQuantity > 0 ? totalCost / newQuantity : 0;
+        } else if (type === 'sell') {
+          if (newQuantity < q) throw new Error('Quantidade insuficiente');
+          newQuantity -= q;
+          if (newQuantity === 0) newAvgPrice = 0;
+        }
+        
+        await trx('assets').where('id', asset.id).update({
+          quantity: newQuantity,
+          average_price: newAvgPrice,
+          current_price: p
+        });
+        
+        await trx('crypto_transactions').insert({
+          user_id: userId,
+          asset_id: asset.id,
+          type,
+          quantity: q,
+          price_at_time: p,
+          fee: f,
+          date
+        });
+      });
+      
+      res.status(201).json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Erro ao registrar transação cripto' });
+    }
+  });
+  
+  app.get('/api/crypto/transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const transactions = await db('crypto_transactions')
+        .join('assets', 'crypto_transactions.asset_id', '=', 'assets.id')
+        .where('crypto_transactions.user_id', userId)
+        .select('crypto_transactions.*', 'assets.symbol', 'assets.name')
+        .orderBy('date', 'desc');
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar transações' });
+    }
+  });
+
+  // --- INVESTMENTS API ---
+  app.get('/api/investments/assets', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const assets = await db('assets').where({ user_id: userId }).whereIn('type', ['fixed_income', 'stocks', 'funds', 'real_estate']);
+      res.json(assets);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar investimentos' });
+    }
+  });
+
+  app.post('/api/investments/transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      
+      const { symbol, name, type, assetType, quantity, price_at_time, fee, date, account_id } = req.body;
+      
+      await db.transaction(async (trx) => {
+        let asset = await trx('assets').where({ user_id: userId, symbol, type: assetType }).first();
+        
+        if (!asset) {
+          if (type !== 'buy') throw new Error('Ativo não encontrado para venda/rendimento');
+          const [assetId] = await trx('assets').insert({
+            user_id: userId,
+            name,
+            symbol,
+            type: assetType,
+            quantity: 0,
+            average_price: 0,
+            current_price: price_at_time
+          });
+          asset = { id: assetId, quantity: 0, average_price: 0 };
+        }
+        
+        const q = Number(quantity);
+        const p = Number(price_at_time);
+        const f = Number(fee || 0);
+        const totalValue = (q * p) + (type === 'buy' ? f : -f);
+        
+        // Update core balance if account_id is provided
+        if (account_id) {
+          const account = await trx('accounts').where({ id: account_id, user_id: userId }).first();
+          if (!account) throw new Error('Conta não encontrada');
+          
+          let transType = 'expense';
+          let description = '';
+          
+          if (type === 'buy') {
+            transType = 'expense';
+            description = `Compra de ${q} ${symbol}`;
+          } else if (type === 'sell') {
+            transType = 'income';
+            description = `Venda de ${q} ${symbol}`;
+          } else if (type === 'yield' || type === 'dividend') {
+            transType = 'income';
+            description = `Rendimento/Dividendo de ${symbol}`;
+          }
+          
+          await trx('transactions').insert({
+            user_id: userId,
+            account_id,
+            type: transType,
+            amount: totalValue,
+            description,
+            category: 'Investimentos',
+            date,
+            status: 'completed',
+            reconciled: 1
+          });
+          
+          const newBalance = transType === 'income' 
+            ? Number(account.balance) + totalValue 
+            : Number(account.balance) - totalValue;
+            
+          await trx('accounts').where('id', account_id).update({ balance: newBalance });
+        }
+        
+        let newQuantity = Number(asset.quantity);
+        let newAvgPrice = Number(asset.average_price);
+        
+        if (type === 'buy') {
+          const totalCost = (newQuantity * newAvgPrice) + (q * p);
+          newQuantity += q;
+          newAvgPrice = newQuantity > 0 ? totalCost / newQuantity : 0;
+        } else if (type === 'sell') {
+          if (newQuantity < q) throw new Error('Quantidade insuficiente');
+          newQuantity -= q;
+          if (newQuantity === 0) newAvgPrice = 0;
+        }
+        // yield/dividend doesn't change quantity or average price
+        
+        await trx('assets').where('id', asset.id).update({
+          quantity: newQuantity,
+          average_price: newAvgPrice,
+          current_price: p
+        });
+        
+        await trx('investment_transactions').insert({
+          user_id: userId,
+          asset_id: asset.id,
+          type,
+          quantity: q,
+          price_at_time: p,
+          fee: f,
+          date
+        });
+      });
+      
+      res.status(201).json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Erro ao registrar transação de investimento' });
+    }
+  });
+  
+  app.get('/api/investments/transactions', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      const transactions = await db('investment_transactions')
+        .join('assets', 'investment_transactions.asset_id', '=', 'assets.id')
+        .where('investment_transactions.user_id', userId)
+        .select('investment_transactions.*', 'assets.symbol', 'assets.name', 'assets.type as asset_type')
+        .orderBy('date', 'desc');
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao buscar transações' });
     }
   });
 

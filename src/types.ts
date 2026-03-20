@@ -23,6 +23,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   status: TransactionStatus;
+  reconciled?: number;
   destination_account_id?: number;
   recurrence?: RecurrenceType;
   card_id?: number | null;
@@ -61,10 +62,55 @@ export interface Card {
   current_bill: number;
 }
 
+export interface CryptoAsset {
+  id: number;
+  name: string;
+  symbol: string;
+  quantity: number;
+  average_price: number;
+  current_price: number;
+}
+
+export interface CryptoTransaction {
+  id: number;
+  asset_id: number;
+  symbol: string;
+  name: string;
+  type: 'buy' | 'sell' | 'transfer';
+  quantity: number;
+  price_at_time: number;
+  fee: number;
+  date: string;
+}
+
+export interface InvestmentAsset {
+  id: number;
+  name: string;
+  symbol: string;
+  type: 'fixed_income' | 'stocks' | 'funds' | 'real_estate';
+  quantity: number;
+  average_price: number;
+  current_price: number;
+}
+
+export interface InvestmentTransaction {
+  id: number;
+  asset_id: number;
+  symbol: string;
+  name: string;
+  asset_type: 'fixed_income' | 'stocks' | 'funds' | 'real_estate';
+  type: 'buy' | 'sell' | 'yield' | 'dividend';
+  quantity: number;
+  price_at_time: number;
+  fee: number;
+  date: string;
+}
+
 export interface DerivedData {
   accounts: Account[];
   totalBalance: number;
   reservedBalance: number;
+  committedBalance: number;
   totalCardDebt: number;
   netWorth: number;
   freeCapital: number;
@@ -76,6 +122,7 @@ export interface DerivedData {
   moneyVelocity: string;
   retentionRate: number;
   dailyAverageSpending: number;
+  dailyAverageSpend: number;
   financialAutonomy: number;
   weeklyBurnRate: number;
   chartData: { month: string; receitas: number; despesas: number }[];
@@ -95,4 +142,17 @@ export interface DerivedData {
   cardsWithDynamicBill: Card[];
   goalsWithDynamicAmount: Goal[];
   categoriesWithSpent: (Category & { spent: number })[];
+  coreStats?: {
+    totalBalance: number;
+    reserved: number;
+    committed: number;
+    free: number;
+    dailyVelocity: number;
+    autonomyDays: number;
+    projection: number;
+  };
+  cryptoAssets: CryptoAsset[];
+  cryptoTransactions: CryptoTransaction[];
+  investmentAssets: InvestmentAsset[];
+  investmentTransactions: InvestmentTransaction[];
 }

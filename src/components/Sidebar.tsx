@@ -9,10 +9,13 @@ import {
   Tags, 
   Target, 
   BarChart3, 
+  Clock,
+  Zap,
   Settings,
   ChevronRight,
   Package,
   ShoppingCart,
+  Gem,
   Lock,
   X,
   LogOut
@@ -31,7 +34,10 @@ const navItems = [
   { id: 'categorias', label: 'Categorias', icon: Tags, module: 'core' },
   { id: 'metas', label: 'Metas', icon: Target, module: 'core' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, module: 'core' },
+  { id: 'projecoes', label: 'Projeções', icon: Clock, module: 'core' },
+  { id: 'crypto', label: 'Cripto', icon: Zap, module: 'crypto', premium: true },
   { id: 'investimentos', label: 'Investimentos', icon: TrendingUp, module: 'investments', premium: true },
+  { id: 'patrimonio', label: 'Patrimônio', icon: Gem, module: 'wealth', premium: true },
 ];
 
 interface SidebarProps {

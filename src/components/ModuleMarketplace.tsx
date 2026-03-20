@@ -1,150 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { Package, CheckCircle2, Clock, CreditCard, Play, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { useFinance } from '../context/FinanceContext';
+import { Zap, TrendingUp, Users, Lock, CheckCircle, Clock, LayoutDashboard, Gem } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 
-interface Module {
-  id: number;
-  slug: string;
-  name: string;
-  description: string;
-  price: number;
-  trial_days: number;
-}
-
 const ModuleMarketplace: React.FC = () => {
-  const [modules, setModules] = useState<Module[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [installingId, setInstallingId] = useState<number | null>(null);
+  const { modules, activateModule } = useFinance();
+  const [activating, setActivating] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch('/api/modules')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setModules(data);
-        } else {
-          console.warn('API de módulos não retornou um array:', data);
-          setModules([]);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Erro ao buscar módulos:', err);
-        setLoading(false);
-      });
-  }, []);
-
-  const handleInstall = async (moduleId: number) => {
-    setInstallingId(moduleId);
+  const handleActivate = async (slug: string) => {
+    setActivating(slug);
     try {
-      const response = await fetch('/api/user/modules/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ module_id: moduleId })
-      });
-      
-      if (response.ok) {
-        toast.success('Módulo ativado com sucesso! Reiniciando cockpit...');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Falha ao instalar módulo');
-      }
-    } catch (error) {
-      toast.error('Erro de conexão ao instalar módulo');
+      await activateModule(slug, true); // Ativa trial por padrão
+      toast.success('Módulo ativado com sucesso!');
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao ativar módulo');
     } finally {
-      setInstallingId(null);
+      setActivating(null);
     }
   };
 
-  if (loading) return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 min-h-[400px]">
-      <Loader2 size={32} className="text-brand-blue animate-spin" />
-      <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Acessando Repositório de Módulos...</p>
-    </div>
-  );
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'TrendingUp': return <TrendingUp size={24} />;
+      case 'Zap': return <Zap size={24} />;
+      case 'Users': return <Users size={24} />;
+      case 'LayoutDashboard': return <LayoutDashboard size={24} />;
+      case 'Gem': return <Gem size={24} />;
+      default: return <Zap size={24} />;
+    }
+  };
 
   return (
-    <div className="p-6 space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tighter text-white flex items-center gap-3 uppercase italic font-serif">
-          <Package className="text-brand-blue" />
-          Marketplace de Módulos
-        </h2>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold mt-1">Expanda as capacidades do seu cockpit financeiro.</p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-bold text-white">Marketplace de Módulos</h2>
+        <p className="text-sm text-gray-400">Potencialize seu cockpit financeiro com extensões especializadas.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {modules.map((mod) => (
-          <motion.div 
-            key={mod.id}
+        {modules.filter(m => m.slug !== 'core').map((module) => (
+          <motion.div
+            key={module.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-panel technical-border rounded-xl overflow-hidden flex flex-col glow-blue-hover transition-all"
+            className={`glass-panel technical-border p-6 rounded-xl flex flex-col h-full ${
+              module.status === 'locked' ? 'opacity-90' : 'border-brand-blue/30'
+            }`}
           >
-            <div className="p-6 flex-1">
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-2 bg-brand-blue/10 rounded-lg border border-brand-blue/20">
-                  <Package size={24} className="text-brand-blue" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-brand-blue/20 text-brand-blue border border-brand-blue/30">
-                  Premium
+            <div className="flex items-start justify-between mb-4">
+              <div className={`p-3 rounded-lg ${
+                module.status === 'active' ? 'bg-brand-green/10 text-brand-green' :
+                module.status === 'trial' ? 'bg-brand-orange/10 text-brand-orange' :
+                'bg-brand-blue/10 text-brand-blue'
+              }`}>
+                {getIcon(module.icon)}
+              </div>
+              {module.status === 'active' && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-green flex items-center gap-1">
+                  <CheckCircle size={12} /> Ativo
                 </span>
-              </div>
-              
-              <h3 className="text-lg font-bold text-white mb-2">{mod.name}</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                {mod.description}
-              </p>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-[10px] text-gray-500 uppercase font-bold">
-                  <Clock size={12} className="text-brand-blue" />
-                  <span>{mod.trial_days} dias de teste grátis</span>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-gray-500 uppercase font-bold">
-                  <CreditCard size={12} className="text-brand-blue" />
-                  <span>R$ {mod.price.toFixed(2)} / mês após o teste</span>
-                </div>
-              </div>
+              )}
+              {module.status === 'trial' && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-orange flex items-center gap-1">
+                  <Clock size={12} /> Trial
+                </span>
+              )}
+              {module.status === 'locked' && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1">
+                  <Lock size={12} /> Disponível
+                </span>
+              )}
             </div>
 
-            <div className="p-4 bg-black/20 border-t border-brand-lead/20">
-              <button 
-                onClick={() => handleInstall(mod.id)}
-                disabled={installingId !== null}
-                className="w-full py-2 bg-brand-blue hover:bg-brand-blue/80 text-brand-graphite font-bold text-xs uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {installingId === mod.id ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Play size={14} fill="currentColor" />
-                )}
-                {installingId === mod.id ? 'Instalando...' : 'Iniciar Teste Grátis'}
-              </button>
+            <h3 className="text-lg font-bold text-white mb-2">{module.name}</h3>
+            <p className="text-sm text-gray-400 mb-6 flex-grow">{module.description}</p>
+
+            <div className="space-y-4 mt-auto">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Preço Mensal</span>
+                <span className="font-mono text-white">
+                  {Number(module.price) === 0 ? 'Grátis' : `R$ ${Number(module.price).toFixed(2)}`}
+                </span>
+              </div>
+
+              {module.status === 'locked' ? (
+                <button
+                  onClick={() => handleActivate(module.slug)}
+                  disabled={activating === module.slug}
+                  className="w-full py-3 bg-brand-blue text-brand-lead font-bold rounded-lg hover:bg-brand-blue/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {activating === module.slug ? 'Ativando...' : Number(module.price) === 0 ? 'Ativar Módulo' : `Ativar Teste (${module.trial_days} dias)`}
+                </button>
+              ) : module.status === 'trial' ? (
+                <button
+                  disabled
+                  className="w-full py-3 bg-brand-orange/20 text-brand-orange font-bold rounded-lg cursor-not-allowed"
+                >
+                  Em Período de Teste
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-3 bg-gray-800 text-gray-500 font-bold rounded-lg cursor-not-allowed"
+                >
+                  Módulo Instalado
+                </button>
+              )}
             </div>
           </motion.div>
         ))}
-      </div>
-
-      <div className="bg-brand-blue/5 border border-brand-blue/20 rounded-xl p-6">
-        <div className="flex items-start gap-4">
-          <CheckCircle2 className="text-brand-blue shrink-0" />
-          <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider italic font-serif">Como funciona o licenciamento?</h4>
-            <p className="text-[10px] text-gray-500 mt-2 leading-relaxed uppercase">
-              Você pode ativar qualquer módulo premium para teste. Durante o período de degustação, todas as funcionalidades estarão liberadas. 
-              Após o término, você poderá optar por assinar o módulo por um valor justo ou ele será desativado automaticamente, sem cobranças surpresa.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
 export default ModuleMarketplace;
-

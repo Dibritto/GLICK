@@ -8,14 +8,29 @@ interface FinanceContextType {
   categories: Category[];
   goals: Goal[];
   cards: Card[];
+  modules: any[];
+  recurringTransactions: any[];
+  forecasts: any[];
   derivedData: DerivedData;
   isLoading: boolean;
   refreshData: () => Promise<void>;
+  
+  // Modules
+  activateModule: (slug: string, isTrial?: boolean) => Promise<void>;
+  
+  // Recurring Transactions
+  createRecurringTransaction: (data: any) => Promise<void>;
+  deleteRecurringTransaction: (id: string) => Promise<void>;
+  
+  // Forecasts
+  createForecast: (data: any) => Promise<void>;
+  deleteForecast: (id: string) => Promise<void>;
   
   // Transactions
   createTransaction: (data: any) => Promise<void>;
   updateTransaction: (id: string, data: any) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  reconcileTransaction: (id: string) => Promise<void>;
   
   // Accounts
   createAccount: (data: any) => Promise<void>;
@@ -39,6 +54,12 @@ interface FinanceContextType {
   
   // Recalculate
   recalculateAccountBalance: (id: number) => Promise<void>;
+
+  // Crypto
+  createCryptoTransaction: (data: any) => Promise<void>;
+
+  // Investments
+  createInvestmentTransaction: (data: any) => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -50,6 +71,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [categories, setCategories] = useState<Category[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
+  const [recurringTransactions, setRecurringTransactions] = useState<any[]>([]);
+  const [forecasts, setForecasts] = useState<any[]>([]);
+  const [cryptoAssets, setCryptoAssets] = useState<any[]>([]);
+  const [cryptoTransactions, setCryptoTransactions] = useState<any[]>([]);
+  const [investmentAssets, setInvestmentAssets] = useState<any[]>([]);
+  const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshData = useCallback(async () => {
@@ -57,12 +85,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(true);
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
-      const [accRes, transRes, catRes, goalsRes, cardsRes] = await Promise.all([
+      const [accRes, transRes, catRes, goalsRes, cardsRes, coreRes, modRes, recRes, foreRes, cryptoAssetsRes, cryptoTransRes, invAssetsRes, invTransRes] = await Promise.all([
         fetch('/api/accounts', { headers }),
         fetch('/api/transactions', { headers }),
         fetch('/api/categories', { headers }),
         fetch('/api/goals', { headers }),
-        fetch('/api/cards', { headers })
+        fetch('/api/cards', { headers }),
+        fetch('/api/finance/core-stats', { headers }),
+        fetch('/api/modules', { headers }),
+        fetch('/api/recurring-transactions', { headers }),
+        fetch('/api/forecasts', { headers }),
+        fetch('/api/crypto/assets', { headers }),
+        fetch('/api/crypto/transactions', { headers }),
+        fetch('/api/investments/assets', { headers }),
+        fetch('/api/investments/transactions', { headers })
       ]);
 
       if (accRes.ok) setAccounts(await accRes.json());
@@ -70,12 +106,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (catRes.ok) setCategories(await catRes.json());
       if (goalsRes.ok) setGoals(await goalsRes.json());
       if (cardsRes.ok) setCards(await cardsRes.json());
+      if (coreRes.ok) setCoreStats(await coreRes.json());
+      if (modRes.ok) setModules(await modRes.json());
+      if (recRes.ok) setRecurringTransactions(await recRes.json());
+      if (foreRes.ok) setForecasts(await foreRes.json());
+      if (cryptoAssetsRes.ok) setCryptoAssets(await cryptoAssetsRes.json());
+      if (cryptoTransRes.ok) setCryptoTransactions(await cryptoTransRes.json());
+      if (invAssetsRes.ok) setInvestmentAssets(await invAssetsRes.json());
+      if (invTransRes.ok) setInvestmentTransactions(await invTransRes.json());
     } catch (error) {
       console.error('Erro ao sincronizar dados financeiros:', error);
     } finally {
       setIsLoading(false);
     }
   }, [token]);
+
+  const [coreStats, setCoreStats] = useState<any>(null);
 
   // Função para forçar a data a ser interpretada localmente, ignorando o fuso horário
   const getLocalDate = (dateString: string) => {
@@ -206,6 +252,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .reduce((acc, curr) => acc + Number(curr.amount), 0);
     
     const dailyAverageSpending = last30DaysExpenses / 30;
+    const dailyAverageSpend = dailyAverageSpending;
     const financialAutonomy = dailyAverageSpending > 0 ? Math.floor(totalBalance / dailyAverageSpending) : 0;
     const weeklyBurnRate = last30DaysExpenses / 4;
 
@@ -306,20 +353,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return {
       accounts: accountsWithProjections,
-      totalBalance,
-      reservedBalance,
+      totalBalance: coreStats?.totalBalance ?? totalBalance,
+      reservedBalance: coreStats?.reserved ?? reservedBalance,
+      committedBalance: coreStats?.committed ?? (totalCardDebt + pendingExpense),
       totalCardDebt,
       netWorth,
-      freeCapital,
+      freeCapital: coreStats?.free ?? freeCapital,
       monthlyIncome,
       monthlyExpenses,
       predictedIncome,
       predictedExpense,
-      projectedBalance: totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense,
-      moneyVelocity,
+      projectedBalance: coreStats?.projection ?? (totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense),
+      moneyVelocity: coreStats?.dailyVelocity ? coreStats.dailyVelocity.toFixed(2) : moneyVelocity,
       retentionRate,
-      dailyAverageSpending,
-      financialAutonomy,
+      dailyAverageSpending: coreStats?.dailyVelocity ?? dailyAverageSpending,
+      dailyAverageSpend: coreStats?.dailyVelocity ?? dailyAverageSpending,
+      financialAutonomy: coreStats?.autonomyDays ?? financialAutonomy,
       weeklyBurnRate,
       chartData,
       spendingByCategory: Object.values(categoryMap).sort((a, b) => b.value - a.value),
@@ -344,9 +393,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       expenseChange,
       cardsWithDynamicBill,
       goalsWithDynamicAmount,
-      categoriesWithSpent
+      categoriesWithSpent,
+      coreStats,
+      cryptoAssets,
+      cryptoTransactions,
+      investmentAssets,
+      investmentTransactions
     };
-  }, [accounts, transactions, categories, goals, cards]);
+  }, [accounts, transactions, categories, goals, cards, coreStats, cryptoAssets, cryptoTransactions, investmentAssets, investmentTransactions]);
 
   const apiAction = useCallback(async (url: string, method: string, body?: any) => {
     if (!token) return;
@@ -386,6 +440,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteTransaction = async (id: string) => {
     await apiAction(`/api/transactions/${id}`, 'DELETE');
     setTransactions(prev => prev.filter(t => t.id !== id));
+    debouncedRefreshData();
+  };
+
+  const reconcileTransaction = async (id: string) => {
+    await apiAction(`/api/transactions/${id}/reconcile`, 'PATCH');
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, reconciled: 1 } : t));
     debouncedRefreshData();
   };
   
@@ -468,6 +528,59 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     debouncedRefreshData();
   };
 
+  const createRecurringTransaction = async (data: any) => {
+    await apiAction('/api/recurring-transactions', 'POST', data);
+    debouncedRefreshData();
+  };
+
+  const deleteRecurringTransaction = async (id: string) => {
+    await apiAction(`/api/recurring-transactions/${id}`, 'DELETE');
+    debouncedRefreshData();
+  };
+
+  const createForecast = async (data: any) => {
+    await apiAction('/api/forecasts', 'POST', data);
+    debouncedRefreshData();
+  };
+
+  const deleteForecast = async (id: string) => {
+    await apiAction(`/api/forecasts/${id}`, 'DELETE');
+    debouncedRefreshData();
+  };
+
+  const createCryptoTransaction = async (data: any) => {
+    await apiAction('/api/crypto/transactions', 'POST', data);
+    debouncedRefreshData();
+  };
+
+  const createInvestmentTransaction = async (data: any) => {
+    await apiAction('/api/investments/transactions', 'POST', data);
+    debouncedRefreshData();
+  };
+
+  const activateModule = async (slug: string, isTrial: boolean = true) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/modules/${slug}/activate`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isTrial })
+      });
+      if (res.ok) {
+        await refreshData();
+      } else {
+        const error = await res.json();
+        throw new Error(error.error || 'Erro ao ativar módulo');
+      }
+    } catch (error) {
+      console.error('Erro ao ativar módulo:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (token) {
       refreshData();
@@ -487,12 +600,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       categories, 
       goals, 
       cards,
+      modules,
+      recurringTransactions,
+      forecasts,
       derivedData,
       isLoading, 
       refreshData,
+      activateModule,
+      createRecurringTransaction,
+      deleteRecurringTransaction,
+      createForecast,
+      deleteForecast,
       createTransaction,
       updateTransaction,
       deleteTransaction,
+      reconcileTransaction,
       createAccount,
       updateAccount,
       deleteAccount,
@@ -505,7 +627,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       deleteCard,
       createCategory,
       updateCategory,
-      deleteCategory
+      deleteCategory,
+      createCryptoTransaction,
+      createInvestmentTransaction
     }}>
       {children}
     </FinanceContext.Provider>

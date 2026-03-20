@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import MainConsole from './components/MainConsole';
@@ -18,7 +18,7 @@ import { Menu, Loader2 } from 'lucide-react';
 
 export default function App() {
   const { user, token, isLoading: isAuthLoading } = useAuth();
-  const { derivedData, refreshData } = useFinance();
+  const { derivedData, refreshData, modules } = useFinance();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
@@ -29,7 +29,13 @@ export default function App() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('expense');
   const [isTransactionTypeLocked, setIsTransactionTypeLocked] = useState(false);
-  const [installedModules, setInstalledModules] = useState(['core']);
+  
+  const installedModules = useMemo(() => {
+    const installed = modules
+      .filter(m => m.status === 'active' || m.status === 'trial')
+      .map(m => m.slug);
+    return ['core', ...installed];
+  }, [modules]);
 
   const [editingAccount, setEditingAccount] = useState<any>(null);
   const [editingGoal, setEditingGoal] = useState<any>(null);
@@ -66,26 +72,6 @@ export default function App() {
   useEffect(() => {
     if (!token) return;
 
-    const fetchModules = async () => {
-      try {
-        const headers = { 'Authorization': `Bearer ${token}` };
-
-        // Buscar Módulos Instalados
-        const modulesRes = await fetch('/api/user/modules', { headers });
-        if (modulesRes.ok) {
-          const modules = await modulesRes.json();
-          if (Array.isArray(modules)) {
-            setInstalledModules(['core', ...modules.map((m: any) => m.slug)]);
-          } else {
-            setInstalledModules(['core']);
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao buscar módulos:', error);
-      }
-    };
-
-    fetchModules();
     const interval = setInterval(refreshData, 30000);
     return () => clearInterval(interval);
   }, [token, refreshData]);
@@ -196,6 +182,7 @@ export default function App() {
                 setIsCategoryModalOpen(true);
               }}
               onEditCategory={handleEditCategory}
+              onNavigate={(view) => setActiveView(view)}
             />
           </div>
 

@@ -13,6 +13,7 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import ModuleMarketplace from './ModuleMarketplace';
+import ForecastView from './ForecastView';
 import MovementsView from './MovementsView';
 import AccountsView from './AccountsView';
 import CardsView from './CardsView';
@@ -21,6 +22,8 @@ import CategoriesView from './CategoriesView';
 import ReportsView from './ReportsView';
 import InvestmentsView from './InvestmentsView';
 import SettingsView from './SettingsView';
+import WealthView from './WealthView';
+import { CryptoView } from './CryptoView';
 
 import { Account, Goal, Card, Category } from '../types';
 
@@ -37,6 +40,7 @@ interface MainConsoleProps {
   onOpenCategoryModal: () => void;
   onEditCategory: (category: Category) => void;
   onEditTransaction: (transaction: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const MainConsole: React.FC<MainConsoleProps> = ({ 
@@ -51,7 +55,8 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   onEditCard,
   onOpenCategoryModal,
   onEditCategory,
-  onEditTransaction
+  onEditTransaction,
+  onNavigate
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -62,6 +67,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   const { 
     totalBalance, 
     reservedBalance,
+    committedBalance,
     totalCardDebt,
     netWorth,
     freeCapital,
@@ -83,7 +89,10 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenTransactionModal('expense', true, goal)} onWithdrawFunds={(goal) => onOpenTransactionModal('income', true, goal)} />;
   if (activeView === 'categorias') return <CategoriesView onAddCategory={onOpenCategoryModal} onEditCategory={onEditCategory} />;
   if (activeView === 'relatorios') return <ReportsView />;
-  if (activeView === 'investimentos') return <InvestmentsView isInstalled={installedModules.includes('investments')} />;
+  if (activeView === 'projecoes') return <ForecastView />;
+  if (activeView === 'crypto') return <CryptoView isInstalled={installedModules.includes('crypto')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
+  if (activeView === 'investimentos') return <InvestmentsView isInstalled={installedModules.includes('investments')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
+  if (activeView === 'patrimonio') return <WealthView isInstalled={installedModules.includes('wealth')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
   if (activeView === 'configuracoes') return <SettingsView />;
 
   if (activeView !== 'dashboard') {
@@ -108,71 +117,53 @@ const MainConsole: React.FC<MainConsoleProps> = ({
 
   return (
     <main className="flex-1 p-4 md:p-8 space-y-8">
-      {/* PAINEL 1 — SALDO PROJETADO */}
+      {/* PAINEL 1 — ESTADOS DO DINHEIRO */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Activity size={18} className="text-brand-blue" />
-          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Console de Projeção Financeira</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Estados do Dinheiro (Core Engine)</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Patrimônio Líquido</p>
-            <p className="text-2xl font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green">
-              <TrendingUp size={12} />
-              <span>Total (Contas + Metas - Dívidas)</span>
-            </div>
-          </div>
-
-          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2 font-bold">Capital Livre</p>
-            <p className="text-2xl font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Saldo Total</p>
+            <p className="text-2xl font-mono font-bold text-white">{formatCurrency(totalBalance)}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <ShieldCheck size={12} />
-              <span>Líquido de faturas</span>
+              <TrendingUp size={12} className="text-brand-green" />
+              <span>Soma de todas as contas</span>
             </div>
           </div>
 
           <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-brand-red mb-2 font-bold">Dívida em Cartões</p>
-            <p className="text-2xl font-mono font-bold text-brand-red">{formatCurrency(totalCardDebt)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-brand-red mb-2 font-bold">Comprometido</p>
+            <p className="text-2xl font-mono font-bold text-brand-red">{formatCurrency(committedBalance)}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <CreditCard size={12} className="text-brand-red" />
-              <span>Soma de todas as faturas</span>
+              <span>Faturas + Pendências</span>
             </div>
           </div>
 
-          <div className="glass-panel technical-border p-5 rounded-xl glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Receitas Previstas</p>
-            <p className="text-2xl font-mono font-bold text-brand-green">{formatCurrency(predictedIncome)}</p>
+          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
+            <p className="text-[10px] uppercase tracking-widest text-brand-orange mb-2 font-bold">Reservado</p>
+            <p className="text-2xl font-mono font-bold text-brand-orange">{formatCurrency(reservedBalance)}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <Clock size={12} />
-              <span>Lançamentos pendentes</span>
-            </div>
-          </div>
-
-          <div className="glass-panel technical-border p-5 rounded-xl glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Despesas Previstas</p>
-            <p className="text-2xl font-mono font-bold text-brand-red">{formatCurrency(predictedExpense)}</p>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <TrendingDown size={12} />
-              <span>Contas e faturas</span>
+              <ShieldCheck size={12} className="text-brand-orange" />
+              <span>Alocado em Metas</span>
             </div>
           </div>
 
           <div className="bg-brand-blue/10 border border-brand-blue/30 p-6 rounded-lg glow-blue">
-            <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2">Saldo Final Previsto</p>
-            <p className="text-2xl font-mono font-bold text-brand-blue">{formatCurrency(projectedBalance)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2 font-bold">Capital Livre</p>
+            <p className="text-2xl font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-blue/70">
-              <ShieldCheck size={12} />
-              <span>Projeção de liquidez</span>
+              <Zap size={12} />
+              <span>Disponível para uso</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* PAINEL 2 — GRÁFICO DE EVOLUÇÃO E ESTADO DO DINHEIRO */}
+      {/* PAINEL 2 — GRÁFICO DE EVOLUÇÃO E VELOCIDADE */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -234,7 +225,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Zap size={18} className="text-brand-blue" />
-            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Velocidade & Retenção</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Velocidade & Autonomia</h2>
           </div>
           <div className="glass-panel technical-border p-6 rounded-lg grid grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -253,17 +244,28 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-end">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500">Taxa de Retenção</p>
-                <p className="text-lg font-mono font-bold text-brand-green">{retentionRate}%</p>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Autonomia Financeira</p>
+                <p className="text-lg font-mono font-bold text-brand-green">{financialAutonomy} Dias</p>
               </div>
               <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: `${retentionRate}%` }}
+                  animate={{ width: `${Math.min((financialAutonomy / 365) * 100, 100)}%` }}
                   className="h-full bg-brand-green"
                 />
               </div>
-              <p className="text-[9px] text-gray-600 italic">Percentual de capital que permanece no ecossistema.</p>
+              <p className="text-[9px] text-gray-600 italic">Dias de sobrevivência sem novas receitas.</p>
+            </div>
+          </div>
+
+          <div className="glass-panel technical-border p-6 rounded-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-widest text-gray-500">Projeção de Saldo Final</p>
+              <p className="text-lg font-mono font-bold text-brand-blue">{formatCurrency(projectedBalance)}</p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-gray-500 italic">
+              <Clock size={12} />
+              <span>Considerando lançamentos pendentes e recorrências.</span>
             </div>
           </div>
         </section>

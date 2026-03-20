@@ -16,7 +16,8 @@ import {
   Trash2,
   Clock,
   Activity,
-  Target
+  Target,
+  CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
@@ -37,7 +38,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   onAddTransaction,
   onEditTransaction
 }) => {
-  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction } = useFinance();
+  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction, reconcileTransaction } = useFinance();
   const { projectedTransactions, allTransactionsSorted, totalIncome, totalExpense } = derivedData;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>(initialTypeFilter as any);
@@ -222,6 +223,14 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                           {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-orange/10 text-brand-orange font-bold uppercase tracking-tighter">Pendente</span>
                           )}
+                          {m.status === 'confirmed' && m.reconciled === 0 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Confirmado</span>
+                          )}
+                          {m.reconciled === 1 && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-green/10 text-brand-green font-bold uppercase tracking-tighter flex items-center gap-1">
+                              <CheckCircle size={10} /> Conciliado
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -261,6 +270,17 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                               className="text-[9px] text-brand-blue hover:text-white uppercase font-bold tracking-widest border border-brand-blue/30 px-2 py-0.5 rounded hover:bg-brand-blue/20 transition-all"
                             >
                               Confirmar Agora
+                            </button>
+                          )}
+                          {m.status === 'confirmed' && m.reconciled === 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reconcileTransaction(m.id);
+                              }}
+                              className="text-[9px] text-brand-green hover:text-white uppercase font-bold tracking-widest border border-brand-green/30 px-2 py-0.5 rounded hover:bg-brand-green/20 transition-all"
+                            >
+                              Conciliar
                             </button>
                           )}
                         </div>

@@ -67,17 +67,46 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 - Lucide React (Ícones)
 - Motion (Animações)
 
-## Arquitetura Modular (Freemium)
+## Arquitetura Lógica — GLICK (Visão Macro)
 
-### Módulos Disponíveis
-1. **Finanças Básicas (Core)**: Gratuito. Gestão de contas, receitas e despesas.
-2. **Investimentos (Premium)**: Pago. Acompanhamento de carteira, dividendos e rentabilidade. (Período de teste disponível).
-3. **Metas Avançadas (Premium)**: Pago. Planejamento de longo prazo e simulações.
+O sistema é dividido em 3 camadas principais para garantir integridade e escalabilidade:
 
-### Regras de Negócio
-- **Instalação On-Demand**: O usuário escolhe quais módulos deseja ver em seu cockpit.
-- **Período de Degustação (Trial)**: Módulos premium podem ser ativados para teste por 7 ou 15 dias.
-- **Transparência**: O status do módulo (Teste, Ativo, Expirado) deve estar visível no menu lateral.
+### 1. Camadas do Sistema
+- **INTERFACE (UI):** Dashboard, telas de gestão e inputs de dados.
+- **CORE FINANCE ENGINE:** O "Cérebro" do sistema. Gere saldos, projeções, estados do dinheiro e validações.
+- **MODULE MANAGER:** Controla o registro, ativação e acesso (Free/Paid) às funcionalidades.
+- **STORAGE / DATABASE:** Persistência em SQL (MySQL/SQLite).
+
+### 2. Princípio Estrutural (Crítico)
+Todos os módulos **NÃO** controlam dinheiro diretamente. Toda movimentação financeira deve passar obrigatoriamente pelo **CORE FINANCE ENGINE**. Isso evita inconsistências de saldo entre diferentes funcionalidades (ex: Cripto vs. Contas Correntes).
+
+### 3. Detalhamento das Camadas
+
+#### CORE FINANCE ENGINE
+- **Estados do Dinheiro:**
+    - **Total:** Saldo bruto em todas as contas.
+    - **Comprometido:** Faturas abertas + Lançamentos pendentes.
+    - **Reservado:** Dinheiro alocado em metas/objetivos.
+    - **Livre:** Capital disponível para uso imediato.
+- **Telemetria:**
+    - **Gasto Médio Diário (GMD):** Velocidade de evasão de capital.
+    - **Autonomia Financeira:** Dias de sobrevivência baseados no GMD.
+- **Motor de Projeção (Forecast):** Snapshots de saldo futuro baseados em recorrências e pendências.
+
+#### MODULE MANAGER
+- Gerencia o ciclo de vida dos módulos (Instalação, Ativação, Trial).
+- Controla o acesso a funcionalidades Premium (Cripto, Investimentos Avançados).
+
+#### MÓDULOS (Funcionalidades)
+- **Módulo 1 (Finance - Free):** Gestão essencial de contas, transações, categorias e metas.
+- **Módulo 2 (Crypto - Paid):** Gestão de ativos digitais, operações de compra/venda e cálculo de Profit/Loss.
+- **Módulo 3 (Investments - Paid):** Renda fixa, ações, fundos e acompanhamento de rendimentos.
+
+### 4. Fluxo de Dados (Event-Driven)
+1. Um **Módulo** (ex: Investimentos) registra um rendimento.
+2. O módulo envia um **Evento** para o **CORE FINANCE ENGINE**.
+3. O **CORE** valida o evento e atualiza o **Saldo Global**.
+4. A **UI** reflete a mudança instantaneamente através de WebSockets ou re-fetch.
 
 ## Arquitetura de Dados (SQL)
 
