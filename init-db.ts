@@ -131,7 +131,7 @@ async function init() {
         table.increments('id').primary();
         table.integer('user_id').unsigned().references('id').inTable('users');
         table.integer('module_id').unsigned().references('id').inTable('modules');
-        table.enum('status', ['trial', 'active', 'expired']).defaultTo('trial');
+        table.string('status').defaultTo('trial'); // trial, active, expired, inactive
         table.timestamp('activated_at');
         table.timestamp('trial_ends_at');
         table.timestamps(true, true);
@@ -281,17 +281,21 @@ async function init() {
       const today = new Date();
       const currentMonth = today.toISOString().split('T')[0].substring(0, 7);
       
-      await db('transactions').insert([
-        { user_id: 1, account_id: 1, type: 'income', category: 'Renda', amount: 5000.00, date: `${currentMonth}-05`, description: 'Salário Mensal', status: 'confirmed' },
-        { user_id: 1, account_id: 1, type: 'expense', category: 'Moradia', amount: 2200.00, date: `${currentMonth}-10`, description: 'Aluguel', status: 'confirmed' },
-        { user_id: 1, account_id: 1, type: 'expense', category: 'Alimentação', amount: 450.00, date: `${currentMonth}-12`, description: 'Supermercado', status: 'confirmed' },
-        { user_id: 1, account_id: 1, type: 'expense', category: 'Transporte', amount: 120.00, date: `${currentMonth}-15`, description: 'Combustível', status: 'confirmed' },
-        { user_id: 1, account_id: 1, type: 'expense', category: 'Lazer', amount: 80.00, date: `${currentMonth}-18`, description: 'Cinema', status: 'confirmed' }
-      ]);
-      console.log('🌱 Seed: Transações iniciais criadas.');
+      const firstAccount = await db('accounts').where('user_id', 1).first();
       
-      // Atualizar saldos das contas
-      await db('accounts').where('id', 1).update({ balance: 2500.50 + 5000 - 2200 - 450 - 120 - 80 });
+      if (firstAccount) {
+        await db('transactions').insert([
+          { user_id: 1, account_id: firstAccount.id, type: 'income', category: 'Renda', amount: 5000.00, date: `${currentMonth}-05`, description: 'Salário Mensal', status: 'confirmed' },
+          { user_id: 1, account_id: firstAccount.id, type: 'expense', category: 'Moradia', amount: 2200.00, date: `${currentMonth}-10`, description: 'Aluguel', status: 'confirmed' },
+          { user_id: 1, account_id: firstAccount.id, type: 'expense', category: 'Alimentação', amount: 450.00, date: `${currentMonth}-12`, description: 'Supermercado', status: 'confirmed' },
+          { user_id: 1, account_id: firstAccount.id, type: 'expense', category: 'Transporte', amount: 120.00, date: `${currentMonth}-15`, description: 'Combustível', status: 'confirmed' },
+          { user_id: 1, account_id: firstAccount.id, type: 'expense', category: 'Lazer', amount: 80.00, date: `${currentMonth}-18`, description: 'Cinema', status: 'confirmed' }
+        ]);
+        console.log('🌱 Seed: Transações iniciais criadas.');
+        
+        // Atualizar saldos das contas
+        await db('accounts').where('id', firstAccount.id).update({ balance: firstAccount.initial_balance + 5000 - 2200 - 450 - 120 - 80 });
+      }
     }
 
     console.log('🚀 Banco de dados pronto para uso!');

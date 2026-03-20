@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
+import { formatCurrency } from '../utils/formatters';
 import { Category } from '../types';
 
 interface CategoriesViewProps {
@@ -84,10 +85,10 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
                     <p className="text-xs font-mono font-bold text-white">
-                      R$ {Number(cat.spent).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(cat.spent)}
                     </p>
                     <p className="text-[10px] font-mono text-gray-500">
-                      de R$ {Number(cat.budget).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      de {formatCurrency(cat.budget)}
                     </p>
                   </div>
 
@@ -156,7 +157,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                   <p className="text-xs font-bold text-white">{item.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-mono font-bold text-white">R$ {Number(item.value).toLocaleString('pt-BR')}</p>
+                  <p className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</p>
                   <p className="text-[9px] text-gray-500 uppercase font-bold">
                     {totalExpense > 0 ? Math.round((Number(item.value) / totalExpense) * 100) : 0}% do total
                   </p>

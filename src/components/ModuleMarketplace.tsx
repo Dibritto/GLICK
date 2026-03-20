@@ -3,6 +3,7 @@ import { useFinance } from '../context/FinanceContext';
 import { Zap, TrendingUp, Users, Lock, CheckCircle, Clock, LayoutDashboard, Gem } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
+import { formatCurrency } from '../utils/formatters';
 
 const ModuleMarketplace: React.FC = () => {
   const { modules, activateModule } = useFinance();
@@ -80,7 +81,7 @@ const ModuleMarketplace: React.FC = () => {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Preço Mensal</span>
                 <span className="font-mono text-white">
-                  {Number(module.price) === 0 ? 'Grátis' : `R$ ${Number(module.price).toFixed(2)}`}
+                  {Number(module.price) === 0 ? 'Grátis' : formatCurrency(module.price)}
                 </span>
               </div>
 

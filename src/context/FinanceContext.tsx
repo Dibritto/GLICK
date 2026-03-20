@@ -17,6 +17,7 @@ interface FinanceContextType {
   
   // Modules
   activateModule: (slug: string, isTrial?: boolean) => Promise<void>;
+  deactivateModule: (slug: string) => Promise<void>;
   
   // Recurring Transactions
   createRecurringTransaction: (data: any) => Promise<void>;
@@ -146,11 +147,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return { ...goal, current_amount: currentAmount };
     });
 
-    // Identificar contas de cartão para excluí-las do saldo principal
-    const cardAccountIds = cards.map(c => c.account_id);
-    const normalAccounts = accounts.filter(a => !cardAccountIds.includes(a.id));
-    
-    const totalBalance = normalAccounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
+    // O saldo total é a soma de todas as contas do usuário
+    const totalBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
     const reservedBalance = goalsWithDynamicAmount.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
     
     // Calcular faturas dos cartões dinamicamente (Saldo Devedor)
@@ -354,21 +352,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return {
       accounts: accountsWithProjections,
       totalBalance: coreStats?.totalBalance ?? totalBalance,
-      reservedBalance: coreStats?.reserved ?? reservedBalance,
-      committedBalance: coreStats?.committed ?? (totalCardDebt + pendingExpense),
+      reservedBalance: coreStats?.reservedBalance ?? reservedBalance,
+      committedBalance: coreStats?.committedBalance ?? (totalCardDebt + pendingExpense),
       totalCardDebt,
-      netWorth,
-      freeCapital: coreStats?.free ?? freeCapital,
+      netWorth: coreStats?.netWorth ?? netWorth,
+      freeCapital: coreStats?.freeBalance ?? freeCapital,
       monthlyIncome,
       monthlyExpenses,
       predictedIncome,
       predictedExpense,
-      projectedBalance: coreStats?.projection ?? (totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense),
-      moneyVelocity: coreStats?.dailyVelocity ? coreStats.dailyVelocity.toFixed(2) : moneyVelocity,
+      projectedBalance: coreStats?.projectedBalance ?? (totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense),
+      moneyVelocity: coreStats?.dailyAverageSpend ? coreStats.dailyAverageSpend.toFixed(2) : moneyVelocity,
       retentionRate,
-      dailyAverageSpending: coreStats?.dailyVelocity ?? dailyAverageSpending,
-      dailyAverageSpend: coreStats?.dailyVelocity ?? dailyAverageSpending,
-      financialAutonomy: coreStats?.autonomyDays ?? financialAutonomy,
+      dailyAverageSpending: coreStats?.dailyAverageSpend ?? dailyAverageSpending,
+      dailyAverageSpend: coreStats?.dailyAverageSpend ?? dailyAverageSpending,
+      financialAutonomy: coreStats?.financialAutonomy ?? financialAutonomy,
       weeklyBurnRate,
       chartData,
       spendingByCategory: Object.values(categoryMap).sort((a, b) => b.value - a.value),
@@ -581,6 +579,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const deactivateModule = async (slug: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/modules/${slug}/deactivate`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        await refreshData();
+      } else {
+        const error = await res.json();
+        throw new Error(error.error || 'Erro ao desativar módulo');
+      }
+    } catch (error) {
+      console.error('Erro ao desativar módulo:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (token) {
       refreshData();
@@ -607,6 +627,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isLoading, 
       refreshData,
       activateModule,
+      deactivateModule,
       createRecurringTransaction,
       deleteRecurringTransaction,
       createForecast,

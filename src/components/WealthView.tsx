@@ -2,7 +2,7 @@ import React from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
 import { Plus, Users, Activity, Lock, Zap, ChevronRight, Home, Car, Gem, TrendingUp, Package } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface WealthViewProps {
   isInstalled?: boolean;

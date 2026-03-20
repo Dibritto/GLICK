@@ -155,7 +155,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Aporte Mensal Médio</p>
-              <p className="text-xl font-mono font-bold text-white">R$ 0,00</p>
+              <p className="text-xl font-mono font-bold text-white">{formatCurrency(0)}</p>
             </div>
           </div>
 

@@ -113,7 +113,7 @@ Todos os módulos **NÃO** controlam dinheiro diretamente. Toda movimentação f
 ### Tabelas Principais
 1. **users**: id, name, email, password_hash, created_at.
 2. **modules**: id, slug, name, description, price, trial_days.
-3. **user_modules**: id, user_id, module_id, status (trial, active, expired), trial_ends_at, activated_at.
+3. **user_modules**: id, user_id, module_id, status (trial, active, expired, inactive), trial_ends_at, activated_at.
 4. **accounts**: id, user_id, name, type, balance, color, created_at.
 3. **transactions**: id, user_id, account_id, type (income, expense, transfer), category, amount, date, status (pending, confirmed), description, created_at.
 4. **goals**: id, user_id, name, target_amount, current_amount, deadline, created_at.

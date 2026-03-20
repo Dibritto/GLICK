@@ -5,6 +5,7 @@ export interface CoreStats {
   reservedBalance: number;
   committedBalance: number;
   freeBalance: number;
+  netWorth: number;
   dailyAverageSpend: number;
   financialAutonomy: number; // in days
   projectedBalance: number;
@@ -33,7 +34,11 @@ export async function calculateCoreStats(userId: number): Promise<CoreStats> {
   const committedBalance = pendingTotal + cardDebt;
 
   // 4. Free Balance
-  const freeBalance = totalBalance - reservedBalance - committedBalance;
+  // O dinheiro das metas já saiu como despesa, então subtraímos apenas as faturas em aberto e transações pendentes
+  const freeBalance = totalBalance - committedBalance;
+
+  // Net Worth (Patrimônio Líquido)
+  const netWorth = totalBalance + reservedBalance - cardDebt;
 
   // 5. Money Velocity (Last 30 days)
   const thirtyDaysAgo = new Date();
@@ -99,6 +104,7 @@ export async function calculateCoreStats(userId: number): Promise<CoreStats> {
     reservedBalance,
     committedBalance,
     freeBalance,
+    netWorth,
     dailyAverageSpend,
     financialAutonomy,
     projectedBalance
@@ -129,6 +135,24 @@ export async function processRecurringTransactions(userId: number) {
       const adjustment = item.type === 'income' ? item.amount : -item.amount;
       await trx('accounts').where('id', item.account_id).increment('balance', adjustment);
 
+      // Update goal balance if present
+      if (item.goal_id) {
+        let goalAdjustment = 0;
+        if (item.type === 'expense') {
+          if (item.category === 'Aporte em Meta') {
+            goalAdjustment = item.amount;
+          } else {
+            goalAdjustment = -item.amount;
+          }
+        } else if (item.type === 'income' && item.category === 'Resgate de Meta') {
+          goalAdjustment = -item.amount;
+        }
+        
+        if (goalAdjustment !== 0) {
+          await trx('goals').where('id', item.goal_id).increment('current_amount', goalAdjustment);
+        }
+      }
+
       // Calculate next date
       const nextDate = new Date(item.next_date);
       if (item.frequency === 'monthly') {
@@ -154,7 +178,7 @@ export async function validateAndRegisterTransaction(userId: number, data: any) 
   if (!data.date) throw new Error('A data é obrigatória');
 
   return await db.transaction(async (trx) => {
-    const { account_id, type, amount, status, card_id, destination_account_id } = data;
+    const { account_id, type, amount, status, card_id, destination_account_id, goal_id } = data;
 
     // 1. VALIDATE: Check if account belongs to user
     const account = await trx('accounts').where({ id: account_id, user_id: userId }).first();
@@ -176,7 +200,26 @@ export async function validateAndRegisterTransaction(userId: number, data: any) 
         await trx('accounts').where('id', account_id).increment('balance', adjustment);
       } else if (card_id) {
         // Update card bill
-        await trx('cards').where('id', card_id).increment('current_bill', amount);
+        const cardAdjustment = type === 'income' ? -amount : amount;
+        await trx('cards').where('id', card_id).increment('current_bill', cardAdjustment);
+      }
+
+      // 4. UPDATE GOAL: If goal_id is present
+      if (goal_id) {
+        let goalAdjustment = 0;
+        if (type === 'expense') {
+          if (data.category === 'Aporte em Meta') {
+            goalAdjustment = amount;
+          } else {
+            goalAdjustment = -amount;
+          }
+        } else if (type === 'income' && data.category === 'Resgate de Meta') {
+          goalAdjustment = -amount;
+        }
+        
+        if (goalAdjustment !== 0) {
+          await trx('goals').where('id', goal_id).increment('current_amount', goalAdjustment);
+        }
       }
     }
 

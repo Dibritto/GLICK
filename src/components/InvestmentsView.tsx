@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
 import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface InvestmentsViewProps {
   isInstalled?: boolean;

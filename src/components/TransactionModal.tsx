@@ -17,6 +17,7 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { formatCurrency } from '../utils/formatters';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -336,7 +337,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     <option value="" disabled className="bg-brand-gray-deep">Selecionar...</option>
                     {accounts.filter(acc => acc.id.toString() !== accountId).map(acc => (
                       <option key={acc.id} value={acc.id} className="bg-brand-gray-deep">
-                        {acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})
+                        {acc.name} ({formatCurrency(acc.balance)})
                       </option>
                     ))}
                   </select>
@@ -356,7 +357,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   <option value="" disabled className="bg-brand-gray-deep">Selecionar...</option>
                   {accounts.filter(acc => acc.id.toString() !== destinationAccountId).map(acc => (
                     <option key={acc.id} value={acc.id} className="bg-brand-gray-deep">
-                      {acc.name} (R$ {Number(acc.balance).toLocaleString('pt-BR')})
+                      {acc.name} ({formatCurrency(acc.balance)})
                     </option>
                   ))}
                 </select>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
 import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Bitcoin, Activity, Lock, Zap, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface CryptoViewProps {
   isInstalled?: boolean;

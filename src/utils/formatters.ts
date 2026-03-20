@@ -7,13 +7,16 @@
  * @param value O valor a ser formatado
  * @param showSymbol Se deve exibir o símbolo "R$" (padrão: true)
  */
-export const formatCurrency = (value: number, showSymbol: boolean = true): string => {
+export const formatCurrency = (value: number | undefined | null, showSymbol: boolean = true): string => {
+  const numValue = Number(value);
+  if (isNaN(numValue)) return showSymbol ? 'R$ 0,00' : '0,00';
+  
   return new Intl.NumberFormat('pt-BR', {
     style: showSymbol ? 'currency' : 'decimal',
     currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(numValue);
 };
 
 /**
@@ -43,6 +46,8 @@ export const formatDate = (dateString: string): string => {
  * Formata uma porcentagem.
  * @param value O valor decimal ou inteiro
  */
-export const formatPercent = (value: number): string => {
-  return `${value.toFixed(1)}%`;
+export const formatPercent = (value: number | undefined | null): string => {
+  const numValue = Number(value);
+  if (isNaN(numValue)) return '0.0%';
+  return `${numValue.toFixed(1)}%`;
 };

@@ -57,13 +57,13 @@ const goalSchema = z.object({
 });
 
 const cardSchema = z.object({
-  name: z.string().min(1),
-  account_id: z.number().positive(),
-  brand: z.string().min(1),
-  limit: z.number().positive(),
-  closing_day: z.number().min(1).max(31),
-  due_day: z.number().min(1).max(31),
-  color: z.string().regex(/^#[0-9A-F]{6}$/i)
+  name: z.string().min(1, 'Nome do cartão é obrigatório'),
+  account_id: z.number().positive('Selecione uma conta válida'),
+  brand: z.string().min(1, 'Bandeira é obrigatória'),
+  limit: z.number().min(0, 'O limite deve ser maior ou igual a zero'),
+  closing_day: z.number().min(1, 'Dia de fechamento inválido').max(31, 'Dia de fechamento inválido'),
+  due_day: z.number().min(1, 'Dia de vencimento inválido').max(31, 'Dia de vencimento inválido'),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Cor inválida')
 });
 
 const categorySchema = z.object({
@@ -180,6 +180,90 @@ async function startServer() {
     }
   });
 
+  // --- API ROUTES (USER SETTINGS) ---
+  app.get('/api/user/export', authenticateToken, async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    try {
+      const data = {
+        accounts: await db('accounts').where('user_id', userId),
+        cards: await db('cards').where('user_id', userId),
+        goals: await db('goals').where('user_id', userId),
+        categories: await db('categories').where('user_id', userId),
+        transactions: await db('transactions').where('user_id', userId),
+        assets: await db('assets').where('user_id', userId),
+        recurring_transactions: await db('recurring_transactions').where('user_id', userId),
+      };
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao exportar dados' });
+    }
+  });
+
+  app.delete('/api/user/reset', authenticateToken, async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    try {
+      await db.transaction(async (trx) => {
+        await trx('transactions').where('user_id', userId).delete();
+        await trx('recurring_transactions').where('user_id', userId).delete();
+        await trx('cards').where('user_id', userId).delete();
+        await trx('goals').where('user_id', userId).delete();
+        await trx('assets').where('user_id', userId).delete();
+        await trx('categories').where('user_id', userId).delete();
+        await trx('accounts').where('user_id', userId).delete();
+        
+        // Recriar conta padrão
+        await trx('accounts').insert({
+          user_id: userId,
+          name: 'Carteira Principal',
+          type: 'checking',
+          balance: 0,
+          initial_balance: 0,
+          color: '#2CC7FF'
+        });
+      });
+      res.json({ message: 'Dados resetados com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao resetar dados' });
+    }
+  });
+
+  app.put('/api/user/profile', authenticateToken, async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    const { name, email } = req.body;
+    try {
+      // Verificar se email já existe para outro usuário
+      if (email) {
+        const existing = await db('users').where('email', email).whereNot('id', userId).first();
+        if (existing) return res.status(400).json({ error: 'Email já em uso' });
+      }
+      
+      await db('users').where('id', userId).update({ name, email });
+      const updatedUser = await db('users').where('id', userId).select('id', 'name', 'email').first();
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar perfil' });
+    }
+  });
+
+  app.put('/api/user/password', authenticateToken, async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    const { currentPassword, newPassword } = req.body;
+    try {
+      const user = await db('users').where('id', userId).first();
+      if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!validPassword) return res.status(400).json({ error: 'Senha atual incorreta' });
+
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      await db('users').where('id', userId).update({ password: hashedNewPassword });
+      
+      res.json({ message: 'Senha atualizada com sucesso' });
+    } catch (error) {
+      res.status(500).json({ error: 'Erro ao atualizar senha' });
+    }
+  });
+
   // --- API ROUTES (MODULES) ---
   
   app.get('/api/modules', authenticateToken, async (req: AuthRequest, res) => {
@@ -204,6 +288,29 @@ async function startServer() {
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao ativar módulo' });
+    }
+  });
+
+  app.post('/api/modules/:slug/deactivate', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user?.id;
+      const { slug } = req.params;
+      console.log(`[DEBUG] Deactivating module: ${slug} for user: ${userId}`);
+      if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+      
+      const module = await db('modules').where('slug', slug).first();
+      console.log(`[DEBUG] Found module:`, module);
+      if (!module) return res.status(404).json({ error: 'Módulo não encontrado' });
+
+      const updateCount = await db('user_modules')
+        .where({ user_id: userId, module_id: module.id })
+        .update({ status: 'inactive' });
+      
+      console.log(`[DEBUG] Update count: ${updateCount}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[ERROR] Error deactivating module:', error);
+      res.status(500).json({ error: 'Erro ao desativar módulo' });
     }
   });
 
@@ -282,6 +389,24 @@ async function startServer() {
           }
         }
 
+        // 1.1 Reverter saldo da meta antigo
+        if (transaction.goal_id) {
+          let oldGoalAdjustment = 0;
+          if (transaction.type === 'expense') {
+            if (transaction.category === 'Aporte em Meta') {
+              oldGoalAdjustment = -transaction.amount;
+            } else {
+              oldGoalAdjustment = transaction.amount;
+            }
+          } else if (transaction.type === 'income' && transaction.category === 'Resgate de Meta') {
+            oldGoalAdjustment = transaction.amount;
+          }
+          
+          if (oldGoalAdjustment !== 0) {
+            await trx('goals').where('id', transaction.goal_id).increment('current_amount', oldGoalAdjustment);
+          }
+        }
+
         // 2. Aplicar novo saldo (apenas se confirmado e não for cartão)
         const newAccount = await trx('accounts').where({ id: account_id, user_id: userId }).first();
         if (!newAccount) throw new Error('Conta de origem inválida');
@@ -297,6 +422,24 @@ async function startServer() {
           } else if (!card_id) { // Só ajusta saldo se não for cartão
             const newAdjustment = type === 'income' ? amount : -amount;
             await trx('accounts').where('id', account_id).increment('balance', newAdjustment);
+          }
+
+          // 2.1 Aplicar novo saldo da meta
+          if (goal_id) {
+            let newGoalAdjustment = 0;
+            if (type === 'expense') {
+              if (category === 'Aporte em Meta') {
+                newGoalAdjustment = amount;
+              } else {
+                newGoalAdjustment = -amount;
+              }
+            } else if (type === 'income' && category === 'Resgate de Meta') {
+              newGoalAdjustment = -amount;
+            }
+            
+            if (newGoalAdjustment !== 0) {
+              await trx('goals').where('id', goal_id).increment('current_amount', newGoalAdjustment);
+            }
           }
         }
 
@@ -409,29 +552,38 @@ async function startServer() {
   app.delete('/api/accounts/:id', authenticateToken, async (req: AuthRequest, res) => {
     const { id } = req.params;
     const userId = req.user?.id;
+    
     try {
-      // 1. Verificar se existem transações vinculadas
-      const transactions = await db('transactions')
-        .where('account_id', id)
-        .orWhere('destination_account_id', id)
-        .first();
-      
-      if (transactions) {
-        return res.status(400).json({ error: 'Não é possível excluir conta com transações vinculadas. Remova as transações primeiro.' });
-      }
+      await db.transaction(async (trx) => {
+        // 1. Verificar se a conta pertence ao usuário
+        const account = await trx('accounts').where({ id, user_id: userId }).first();
+        if (!account) {
+          throw new Error('ACCOUNT_NOT_FOUND');
+        }
 
-      // 2. Verificar se existem cartões vinculados
-      const cards = await db('cards').where('account_id', id).first();
-      if (cards) {
-        return res.status(400).json({ error: 'Esta conta possui cartões de crédito vinculados. Remova os cartões primeiro.' });
-      }
+        // 2. Remover transações vinculadas (origem ou destino)
+        await trx('transactions')
+          .where('account_id', id)
+          .orWhere('destination_account_id', id)
+          .delete();
 
-      const deleted = await db('accounts').where({ id, user_id: userId }).delete();
-      if (!deleted) return res.status(404).json({ error: 'Conta não encontrada' });
-      res.json({ message: 'Conta excluída com sucesso' });
-    } catch (error) {
-      console.error('Erro ao excluir conta:', error);
-      res.status(500).json({ error: 'Erro ao excluir conta' });
+        // 3. Remover cartões vinculados
+        await trx('cards').where('account_id', id).delete();
+
+        // 4. Remover transações recorrentes vinculadas
+        await trx('recurring_transactions').where('account_id', id).delete();
+
+        // 5. Finalmente, excluir a conta
+        await trx('accounts').where({ id, user_id: userId }).delete();
+      });
+
+      res.json({ message: 'Conta e todos os dados vinculados foram excluídos com sucesso.' });
+    } catch (error: any) {
+      if (error.message === 'ACCOUNT_NOT_FOUND') {
+        return res.status(404).json({ error: 'Conta não encontrada' });
+      }
+      console.error('Erro ao excluir conta (Cascade):', error);
+      res.status(500).json({ error: 'Erro interno ao processar exclusão em cascata.' });
     }
   });
 
@@ -678,7 +830,8 @@ async function startServer() {
         if (transaction.status === 'confirmed') {
           if (transaction.card_id) {
             // Reverter fatura do cartão
-            await trx('cards').where('id', transaction.card_id).decrement('current_bill', transaction.amount);
+            const cardAdjustment = transaction.type === 'income' ? transaction.amount : -transaction.amount;
+            await trx('cards').where('id', transaction.card_id).increment('current_bill', cardAdjustment);
           } else {
             const adjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
             await trx('accounts').where('id', transaction.account_id).increment('balance', adjustment);
@@ -686,6 +839,24 @@ async function startServer() {
             // Se for transferência, reverter conta destino também
             if (transaction.type === 'transfer' && transaction.destination_account_id) {
               await trx('accounts').where('id', transaction.destination_account_id).decrement('balance', transaction.amount);
+            }
+          }
+
+          // Reverter saldo da meta se presente
+          if (transaction.goal_id) {
+            let goalAdjustment = 0;
+            if (transaction.type === 'expense') {
+              if (transaction.category === 'Aporte em Meta') {
+                goalAdjustment = -transaction.amount;
+              } else {
+                goalAdjustment = transaction.amount;
+              }
+            } else if (transaction.type === 'income' && transaction.category === 'Resgate de Meta') {
+              goalAdjustment = transaction.amount;
+            }
+            
+            if (goalAdjustment !== 0) {
+              await trx('goals').where('id', transaction.goal_id).increment('current_amount', goalAdjustment);
             }
           }
         }

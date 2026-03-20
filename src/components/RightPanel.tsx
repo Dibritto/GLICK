@@ -3,6 +3,8 @@ import { Calendar, Bell, Target, ChevronRight, AlertTriangle, Loader2 } from 'lu
 import { motion } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
 
+import { formatCurrency } from '../utils/formatters';
+
 const RightPanel: React.FC = () => {
   const { transactions, derivedData, isLoading } = useFinance();
   const { goalsWithDynamicAmount: goals } = derivedData;
@@ -55,7 +57,7 @@ const RightPanel: React.FC = () => {
                   </div>
                 </div>
                 <p className={`text-xs font-mono font-bold ${item.type === 'income' ? 'text-brand-green' : 'text-brand-red'}`}>
-                  R$ {Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {formatCurrency(item.amount)}
                 </p>
               </div>
             ))
@@ -97,7 +99,7 @@ const RightPanel: React.FC = () => {
                     />
                   </div>
                   <p className="text-[9px] text-gray-500 mt-1">
-                    R$ {Number(goal.current_amount).toLocaleString('pt-BR')} / R$ {Number(goal.target_amount).toLocaleString('pt-BR')}
+                    {formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)}
                   </p>
                 </div>
               );

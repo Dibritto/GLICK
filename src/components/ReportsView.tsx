@@ -242,7 +242,7 @@ const ReportsView: React.FC = () => {
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
                         <span className="text-xs text-gray-400">{item.name}</span>
                       </div>
-                      <span className="text-xs font-mono font-bold text-white">R$ {Number(item.value).toLocaleString('pt-BR')}</span>
+                      <span className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</span>
                     </div>
                   ))}
                   {categoryData.length === 0 && (
@@ -290,7 +290,7 @@ const ReportsView: React.FC = () => {
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
                         <span className="text-xs text-gray-400">{item.name}</span>
                       </div>
-                      <span className="text-xs font-mono font-bold text-white">R$ {Number(item.value).toLocaleString('pt-BR')}</span>
+                      <span className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</span>
                     </div>
                   ))}
                 </div>

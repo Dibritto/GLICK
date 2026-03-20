@@ -8,7 +8,7 @@ export interface Module {
   icon: string;
   price: number;
   trial_days: number;
-  status?: 'trial' | 'active' | 'expired' | 'locked';
+  status?: 'trial' | 'active' | 'expired' | 'locked' | 'inactive';
   trial_ends_at?: string;
 }
 
@@ -43,17 +43,24 @@ export async function activateModule(userId: number, moduleSlug: string, isTrial
 
   if (existing) {
     if (existing.status === 'active') return existing;
-    // Se expirou ou está em trial, podemos reativar se for compra real
-    if (!isTrial) {
-      await db('user_modules')
-        .where('id', existing.id)
-        .update({
-          status: 'active',
-          activated_at: new Date().toISOString(),
-          trial_ends_at: null
-        });
-    }
-    return existing;
+    
+    // Se expirou, está inativo ou está em trial, podemos reativar
+    const isFree = Number(module.price) === 0;
+    const finalStatus = isFree || !isTrial ? 'active' : 'trial';
+    
+    const trialEndsAt = finalStatus === 'trial' 
+      ? new Date(Date.now() + module.trial_days * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    await db('user_modules')
+      .where('id', existing.id)
+      .update({
+        status: finalStatus,
+        activated_at: new Date().toISOString(),
+        trial_ends_at: trialEndsAt
+      });
+      
+    return { ...existing, status: finalStatus, trial_ends_at: trialEndsAt };
   }
 
   const isFree = Number(module.price) === 0;
