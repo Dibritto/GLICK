@@ -63,9 +63,6 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
           <h2 className="text-xl font-bold text-white">Gestão de Patrimônio</h2>
           <p className="text-sm text-gray-400">Visão consolidada de seus ativos e patrimônio líquido.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-brand-green/10 text-brand-green border border-brand-green/20 rounded-lg text-xs font-bold hover:bg-brand-green/20 transition-colors">
-          <Plus size={14} /> Adicionar Ativo
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

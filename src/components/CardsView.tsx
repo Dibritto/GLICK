@@ -86,7 +86,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
                   </div>
 
                   <div className="relative z-10">
-                    <p className="text-lg font-mono tracking-[0.2em] text-white/90">•••• •••• •••• ****</p>
+                    <p className="text-lg font-mono tracking-[0.2em] text-white/90">•••• •••• •••• ••••</p>
                   </div>
 
                   <div className="flex justify-between items-end relative z-10">

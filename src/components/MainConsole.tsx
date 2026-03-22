@@ -30,11 +30,12 @@ import { Account, Goal, Card, Category } from '../types';
 interface MainConsoleProps {
   activeView?: string;
   installedModules?: string[];
-  onOpenTransactionModal: (type?: 'income' | 'expense', lockType?: boolean, goal?: Goal) => void;
+  onOpenTransactionModal: (type?: 'income' | 'expense' | 'transfer', lockType?: boolean, goal?: Goal) => void;
   onOpenAccountModal: () => void;
   onEditAccount: (account: Account) => void;
   onOpenGoalModal: () => void;
   onEditGoal: (goal: Goal) => void;
+  onOpenGoalFundingModal: (type: 'add' | 'withdraw', goal: Goal) => void;
   onOpenCardModal: () => void;
   onEditCard: (card: Card) => void;
   onOpenCategoryModal: () => void;
@@ -51,6 +52,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   onEditAccount,
   onOpenGoalModal,
   onEditGoal,
+  onOpenGoalFundingModal,
   onOpenCardModal,
   onEditCard,
   onOpenCategoryModal,
@@ -84,9 +86,9 @@ const MainConsole: React.FC<MainConsoleProps> = ({
 
   if (activeView === 'marketplace') return <ModuleMarketplace />;
   if (activeView === 'fluxo-caixa') return <MovementsView onAddTransaction={() => onOpenTransactionModal()} onEditTransaction={onEditTransaction} />;
-  if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onEditAccount={onEditAccount} onEditTransaction={onEditTransaction} />;
+  if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onAddTransfer={() => onOpenTransactionModal('transfer')} onEditAccount={onEditAccount} onEditTransaction={onEditTransaction} />;
   if (activeView === 'cartoes') return <CardsView onAddCard={onOpenCardModal} onEditCard={onEditCard} />;
-  if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenTransactionModal('expense', true, goal)} onWithdrawFunds={(goal) => onOpenTransactionModal('income', true, goal)} />;
+  if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenGoalFundingModal('add', goal)} onWithdrawFunds={(goal) => onOpenGoalFundingModal('withdraw', goal)} />;
   if (activeView === 'categorias') return <CategoriesView onAddCategory={onOpenCategoryModal} onEditCategory={onEditCategory} />;
   if (activeView === 'relatorios') return <ReportsView />;
   if (activeView === 'projecoes') return <ForecastView />;
@@ -279,19 +281,19 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Capital Livre (40%)</p>
-                <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(totalBalance * 0.4)}</p>
+                <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(derivedData.monthlyIncome * 0.4)}</p>
               </div>
               <div className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Reserva (30%)</p>
-                <p className="text-sm font-mono font-bold text-brand-green">{formatCurrency(totalBalance * 0.3)}</p>
+                <p className="text-sm font-mono font-bold text-brand-green">{formatCurrency(derivedData.monthlyIncome * 0.3)}</p>
               </div>
               <div className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Invest. (20%)</p>
-                <p className="text-sm font-mono font-bold text-brand-orange">{formatCurrency(totalBalance * 0.2)}</p>
+                <p className="text-sm font-mono font-bold text-brand-orange">{formatCurrency(derivedData.monthlyIncome * 0.2)}</p>
               </div>
               <div className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Lazer (10%)</p>
-                <p className="text-sm font-mono font-bold text-brand-red">{formatCurrency(totalBalance * 0.1)}</p>
+                <p className="text-sm font-mono font-bold text-brand-red">{formatCurrency(derivedData.monthlyIncome * 0.1)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-gray-500 italic">
@@ -309,7 +311,12 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <ListFilter size={18} className="text-brand-blue" />
             <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Movimentações Recentes</h2>
           </div>
-          <button className="text-[10px] uppercase font-bold text-brand-blue hover:underline">Ver Tudo</button>
+          <button 
+            onClick={() => onNavigate?.('fluxo-caixa')}
+            className="text-[10px] uppercase font-bold text-brand-blue hover:underline"
+          >
+            Ver Tudo
+          </button>
         </div>
 
         <div className="glass-panel technical-border rounded-lg overflow-hidden overflow-x-auto no-scrollbar">
@@ -332,7 +339,11 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                 </tr>
               ) : confirmedTransactions.length > 0 ? (
                 confirmedTransactions.slice(0, 5).map((t) => (
-                  <tr key={t.id} className="hover:bg-brand-lead/10 transition-colors group cursor-pointer">
+                  <tr 
+                    key={t.id} 
+                    onClick={() => onEditTransaction(t)}
+                    className="hover:bg-brand-lead/10 transition-colors group cursor-pointer"
+                  >
                     <td className="px-6 py-4 text-xs font-mono text-gray-400">
                       {formatDate(t.date)}
                     </td>

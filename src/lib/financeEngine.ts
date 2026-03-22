@@ -190,8 +190,8 @@ export async function validateAndRegisterTransaction(userId: number, data: any) 
       user_id: userId // Ensure user_id is set
     });
 
-    // 3. UPDATE BALANCE: If confirmed and not credit card
-    if (status === 'confirmed') {
+    // 3. UPDATE BALANCE: If confirmed or reconciled and not credit card
+    if (status === 'confirmed' || status === 'reconciled') {
       if (type === 'transfer' && destination_account_id) {
         await trx('accounts').where('id', account_id).decrement('balance', amount);
         await trx('accounts').where('id', destination_account_id).increment('balance', amount);

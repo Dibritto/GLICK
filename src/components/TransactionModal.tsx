@@ -47,7 +47,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   const [cardId, setCardId] = useState('');
   const [goalId, setGoalId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [status, setStatus] = useState<'confirmed' | 'pending'>('confirmed');
+  const [status, setStatus] = useState<'confirmed' | 'pending' | 'reconciled'>('confirmed');
   const [recurrence, setRecurrence] = useState<'none' | 'monthly' | 'weekly' | 'yearly'>('none');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -63,7 +63,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setDestinationAccountId(editingTransaction.destination_account_id?.toString() || '');
       setCardId(editingTransaction.card_id?.toString() || '');
       setGoalId(editingTransaction.goal_id?.toString() || '');
-      setStatus(editingTransaction.status as 'confirmed' | 'pending' || 'confirmed');
+      setStatus(editingTransaction.status as 'confirmed' | 'pending' | 'reconciled' || 'confirmed');
       // Evitar problemas de fuso horário ao carregar a data para o input
       const transactionDate = editingTransaction.date;
       if (transactionDate.includes('T')) {
@@ -165,7 +165,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         goal_id: (type === 'expense' || type === 'income') && goalId ? Number(goalId) : null
       };
 
-      if (editingTransaction) {
+      if (editingTransaction && !String(editingTransaction.id).startsWith('projected-')) {
         await updateTransaction(editingTransaction.id, data);
         toast.success('Transação atualizada com sucesso');
       } else {
@@ -262,7 +262,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           </div>
 
           {/* Status (Apenas se não for cartão) */}
-          {!cardId && (
+          {!cardId && status !== 'reconciled' && (
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-white uppercase tracking-wider">Status da Transação</p>
@@ -281,6 +281,16 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               >
                 {status === 'confirmed' ? 'Confirmada' : 'Pendente'}
               </button>
+            </div>
+          )}
+          {!cardId && status === 'reconciled' && (
+            <div className="flex items-center justify-between p-4 bg-brand-green/10 border border-brand-green/30 rounded-lg">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-brand-green uppercase tracking-wider">Status da Transação</p>
+                <p className="text-[10px] text-brand-green/70 uppercase tracking-widest flex items-center gap-1">
+                  <Check size={12} /> Conciliada (Auditada)
+                </p>
+              </div>
             </div>
           )}
 
@@ -444,7 +454,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 
           {/* Botões de Ação */}
           <div className="flex gap-3">
-            {editingTransaction && (
+            {editingTransaction && !String(editingTransaction.id).startsWith('projected-') && (
               <button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}

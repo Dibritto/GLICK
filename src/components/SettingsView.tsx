@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { toast } from 'sonner';
+import ConfirmationModal from './ConfirmationModal';
 
 const SettingsView: React.FC = () => {
   const { user, logout, updateUser, token } = useAuth();
@@ -38,8 +39,27 @@ const SettingsView: React.FC = () => {
   const [isManagingDevices, setIsManagingDevices] = useState(false);
   const [isManagingAdvanced, setIsManagingAdvanced] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [editForm, setEditForm] = useState({ name: user?.name || '', email: user?.email || '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [systemHealth, setSystemHealth] = useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          setSystemHealth(data);
+        }
+      } catch (error) {
+        console.error('Falha ao buscar telemetria');
+      }
+    };
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleExport = async () => {
     try {
@@ -65,8 +85,6 @@ const SettingsView: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (!confirm('TEM CERTEZA? Isso apagará todas as suas transações, contas e metas permanentemente.')) return;
-    
     setIsResetting(true);
     try {
       const res = await fetch('/api/user/reset', {
@@ -81,6 +99,7 @@ const SettingsView: React.FC = () => {
       toast.error('Falha ao resetar dados');
     } finally {
       setIsResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -172,29 +191,7 @@ const SettingsView: React.FC = () => {
           label: 'Gestão de Módulos', 
           desc: 'Ativar Cripto, Investimentos e Metas Avançadas',
           onClick: () => setIsManagingModules(true)
-        },
-        { 
-          icon: Zap, 
-          label: 'Automações', 
-          desc: 'Regras de categorização e alertas inteligentes' 
-        },
-      ]
-    },
-    {
-      title: 'Conexões & Open Finance',
-      items: [
-        { 
-          icon: Globe, 
-          label: 'Bancos Conectados', 
-          desc: 'Gestão de consentimentos e sincronização',
-          onClick: () => setIsManagingBanks(true)
-        },
-        { 
-          icon: Webhook, 
-          label: 'Webhooks', 
-          desc: 'Integrações externas e automações',
-          onClick: () => setIsManagingWebhooks(true)
-        },
+        }
       ]
     },
     {
@@ -233,7 +230,7 @@ const SettingsView: React.FC = () => {
           icon: Trash2, 
           label: 'Resetar Conta', 
           desc: 'Apagar todos os dados financeiros',
-          onClick: handleReset,
+          onClick: () => setShowResetConfirm(true),
           danger: true
         },
         { 
@@ -261,9 +258,9 @@ const SettingsView: React.FC = () => {
       {/* Telemetria de Sistema */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Status do Core', value: 'Operacional', color: 'text-emerald-500' },
-          { label: 'Latência API', value: '24ms', color: 'text-brand-blue' },
-          { label: 'Último Backup', value: 'Hoje, 04:00', color: 'text-gray-400' },
+          { label: 'Status do Core', value: systemHealth?.status === 'ok' ? 'Operacional' : 'Instável', color: systemHealth?.status === 'ok' ? 'text-emerald-500' : 'text-brand-red' },
+          { label: 'Modo Banco', value: systemHealth?.dbMode || 'SQLite (Preview)', color: 'text-brand-blue' },
+          { label: 'Último Check', value: systemHealth?.timestamp ? new Date(systemHealth.timestamp).toLocaleTimeString() : 'Aguardando...', color: 'text-gray-400' },
           { label: 'Sessão Expira', value: '6 dias', color: 'text-orange-500' },
         ].map((stat, i) => (
           <div key={i} className="glass-panel technical-border p-3 rounded-xl">
@@ -891,6 +888,17 @@ const SettingsView: React.FC = () => {
           Glick OS v2.4.0-stable — Build 2026.03.20
         </p>
       </div>
+      {/* Modal de Confirmação de Reset */}
+      <ConfirmationModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleReset}
+        title="Resetar Todos os Dados?"
+        message="Esta ação é irreversível. Todas as suas transações, contas, cartões e metas serão apagados permanentemente. Deseja continuar?"
+        confirmText={isResetting ? "Resetando..." : "Sim, Apagar Tudo"}
+        cancelText="Cancelar"
+        type="danger"
+      />
     </div>
   );
 };

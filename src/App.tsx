@@ -9,6 +9,7 @@ import AccountModal from './components/AccountModal';
 import GoalModal from './components/GoalModal';
 import CardModal from './components/CardModal';
 import CategoryModal from './components/CategoryModal';
+import GoalFundingModal from './components/GoalFundingModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthView from './components/AuthView';
 import { Toaster } from 'sonner';
@@ -22,14 +23,15 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [transactionModalType, setTransactionModalType] = useState<'income' | 'expense'>('expense');
-  const [isTransactionTypeLocked, setIsTransactionTypeLocked] = useState(false);
   
+  type ModalState = {
+    type: 'transaction' | 'account' | 'goal' | 'card' | 'category' | 'goalFunding' | null;
+    data?: any;
+    extra?: any;
+  };
+  
+  const [modal, setModal] = useState<ModalState>({ type: null });
+
   const installedModules = useMemo(() => {
     const installed = modules
       .filter(m => m.status === 'active' || m.status === 'trial')
@@ -37,36 +39,24 @@ export default function App() {
     return ['core', ...installed];
   }, [modules]);
 
-  const [editingAccount, setEditingAccount] = useState<any>(null);
-  const [editingGoal, setEditingGoal] = useState<any>(null);
-  const [editingCard, setEditingCard] = useState<any>(null);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
-  const [editingTransaction, setEditingTransaction] = useState<any>(null);
-  const [prefilledGoal, setPrefilledGoal] = useState<any>(null);
-
   const handleEditAccount = (account: any) => {
-    setEditingAccount(account);
-    setIsAccountModalOpen(true);
+    setModal({ type: 'account', data: account });
   };
 
   const handleEditGoal = (goal: any) => {
-    setEditingGoal(goal);
-    setIsGoalModalOpen(true);
+    setModal({ type: 'goal', data: goal });
   };
 
   const handleEditCard = (card: any) => {
-    setEditingCard(card);
-    setIsCardModalOpen(true);
+    setModal({ type: 'card', data: card });
   };
 
   const handleEditCategory = (category: any) => {
-    setEditingCategory(category);
-    setIsCategoryModalOpen(true);
+    setModal({ type: 'category', data: category });
   };
 
   const handleEditTransaction = (transaction: any) => {
-    setEditingTransaction(transaction);
-    setIsTransactionModalOpen(true);
+    setModal({ type: 'transaction', data: transaction, extra: { transactionType: transaction.type } });
   };
 
   useEffect(() => {
@@ -155,32 +145,20 @@ export default function App() {
               activeView={activeView} 
               installedModules={installedModules}
               onOpenTransactionModal={(type, lockType = false, goal = null) => {
-                if (type) setTransactionModalType(type);
-                setIsTransactionTypeLocked(lockType);
-                setEditingTransaction(null);
-                setPrefilledGoal(goal);
-                setIsTransactionModalOpen(true);
+                setModal({ 
+                  type: 'transaction', 
+                  extra: { transactionType: type || 'expense', lockType, prefilledGoal: goal } 
+                });
               }}
               onEditTransaction={handleEditTransaction}
-              onOpenAccountModal={() => {
-                setEditingAccount(null);
-                setIsAccountModalOpen(true);
-              }}
+              onOpenAccountModal={() => setModal({ type: 'account' })}
               onEditAccount={handleEditAccount}
-              onOpenGoalModal={() => {
-                setEditingGoal(null);
-                setIsGoalModalOpen(true);
-              }}
+              onOpenGoalModal={() => setModal({ type: 'goal' })}
               onEditGoal={handleEditGoal}
-              onOpenCardModal={() => {
-                setEditingCard(null);
-                setIsCardModalOpen(true);
-              }}
+              onOpenGoalFundingModal={(type, goal) => setModal({ type: 'goalFunding', data: goal, extra: { fundingType: type } })}
+              onOpenCardModal={() => setModal({ type: 'card' })}
               onEditCard={handleEditCard}
-              onOpenCategoryModal={() => {
-                setEditingCategory(null);
-                setIsCategoryModalOpen(true);
-              }}
+              onOpenCategoryModal={() => setModal({ type: 'category' })}
               onEditCategory={handleEditCategory}
               onNavigate={(view) => setActiveView(view)}
             />
@@ -197,67 +175,49 @@ export default function App() {
 
       {/* Dock Inferior: Ações Rápidas */}
       <QuickActions 
-        onAddExpense={() => {
-          setTransactionModalType('expense');
-          setIsTransactionTypeLocked(false);
-          setIsTransactionModalOpen(true);
-        }}
-        onAddIncome={() => {
-          setTransactionModalType('income');
-          setIsTransactionTypeLocked(false);
-          setIsTransactionModalOpen(true);
-        }}
+        onAddExpense={() => setModal({ type: 'transaction', extra: { transactionType: 'expense', lockType: false } })}
+        onAddIncome={() => setModal({ type: 'transaction', extra: { transactionType: 'income', lockType: false } })}
       />
 
       {/* Modais Globais */}
       <TransactionModal 
-        isOpen={isTransactionModalOpen}
-        onClose={() => {
-          setIsTransactionModalOpen(false);
-          setEditingTransaction(null);
-          setIsTransactionTypeLocked(false);
-          setPrefilledGoal(null);
-        }}
-        type={transactionModalType}
-        lockType={isTransactionTypeLocked}
-        editingTransaction={editingTransaction}
-        prefilledGoal={prefilledGoal}
+        isOpen={modal.type === 'transaction'}
+        onClose={() => setModal({ type: null })}
+        type={modal.extra?.transactionType || 'expense'}
+        lockType={modal.extra?.lockType || false}
+        editingTransaction={modal.data}
+        prefilledGoal={modal.extra?.prefilledGoal}
       />
 
       <AccountModal 
-        isOpen={isAccountModalOpen}
-        onClose={() => {
-          setIsAccountModalOpen(false);
-          setEditingAccount(null);
-        }}
-        editingAccount={editingAccount}
+        isOpen={modal.type === 'account'}
+        onClose={() => setModal({ type: null })}
+        editingAccount={modal.data}
       />
 
       <GoalModal 
-        isOpen={isGoalModalOpen}
-        onClose={() => {
-          setIsGoalModalOpen(false);
-          setEditingGoal(null);
-        }}
-        editingGoal={editingGoal}
+        isOpen={modal.type === 'goal'}
+        onClose={() => setModal({ type: null })}
+        editingGoal={modal.data}
       />
 
       <CardModal 
-        isOpen={isCardModalOpen}
-        onClose={() => {
-          setIsCardModalOpen(false);
-          setEditingCard(null);
-        }}
-        editingCard={editingCard}
+        isOpen={modal.type === 'card'}
+        onClose={() => setModal({ type: null })}
+        editingCard={modal.data}
       />
 
       <CategoryModal 
-        isOpen={isCategoryModalOpen}
-        onClose={() => {
-          setIsCategoryModalOpen(false);
-          setEditingCategory(null);
-        }}
-        editingCategory={editingCategory}
+        isOpen={modal.type === 'category'}
+        onClose={() => setModal({ type: null })}
+        editingCategory={modal.data}
+      />
+
+      <GoalFundingModal
+        isOpen={modal.type === 'goalFunding'}
+        onClose={() => setModal({ type: null })}
+        goal={modal.data}
+        type={modal.extra?.fundingType || 'add'}
       />
       </div>
     </ErrorBoundary>

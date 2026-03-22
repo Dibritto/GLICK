@@ -34,7 +34,7 @@ const transactionSchema = z.object({
   amount: z.number().positive('O valor deve ser positivo'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de data inválido (YYYY-MM-DD)'),
   description: z.string().min(1),
-  status: z.enum(['confirmed', 'pending']).default('confirmed'),
+  status: z.enum(['confirmed', 'pending', 'reconciled']).default('confirmed'),
   recurrence: z.enum(['none', 'monthly', 'weekly', 'yearly']).optional().default('none'),
   card_id: z.number().positive().optional().nullable(),
   goal_id: z.number().positive().optional().nullable()
@@ -191,7 +191,10 @@ async function startServer() {
         categories: await db('categories').where('user_id', userId),
         transactions: await db('transactions').where('user_id', userId),
         assets: await db('assets').where('user_id', userId),
+        crypto_transactions: await db('crypto_transactions').where('user_id', userId),
+        investment_transactions: await db('investment_transactions').where('user_id', userId),
         recurring_transactions: await db('recurring_transactions').where('user_id', userId),
+        user_modules: await db('user_modules').where('user_id', userId),
       };
       res.json(data);
     } catch (error) {
@@ -203,6 +206,8 @@ async function startServer() {
     const userId = req.user!.id;
     try {
       await db.transaction(async (trx) => {
+        await trx('crypto_transactions').where('user_id', userId).delete();
+        await trx('investment_transactions').where('user_id', userId).delete();
         await trx('transactions').where('user_id', userId).delete();
         await trx('recurring_transactions').where('user_id', userId).delete();
         await trx('cards').where('user_id', userId).delete();
@@ -223,6 +228,7 @@ async function startServer() {
       });
       res.json({ message: 'Dados resetados com sucesso' });
     } catch (error) {
+      console.error('Erro ao resetar dados:', error);
       res.status(500).json({ error: 'Erro ao resetar dados' });
     }
   });
@@ -316,8 +322,20 @@ async function startServer() {
 
   // --- API ROUTES (DATA - PROTECTED) ---
   
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Backend SQL operacional' });
+  app.get('/api/health', async (req, res) => {
+    try {
+      // Test database connection
+      await db.raw('SELECT 1');
+      const isSqlite = db.client.config.client === 'better-sqlite3';
+      res.json({ 
+        status: 'ok', 
+        message: 'Backend operacional',
+        dbMode: isSqlite ? 'SQLite (Preview)' : 'MySQL (Production)',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: 'Erro na conexão com o banco' });
+    }
   });
 
   // 1. Resumo de Telemetria - REMOVIDO (Calculado no Cliente)
@@ -332,7 +350,7 @@ async function startServer() {
         .leftJoin('cards', 'transactions.card_id', 'cards.id')
         .where('accounts.user_id', userId)
         .orderBy('date', 'desc')
-        .limit(100);
+        .limit(1000);
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao buscar transações' });
@@ -379,8 +397,8 @@ async function startServer() {
       }
 
       await db.transaction(async (trx) => {
-        // 1. Reverter saldo antigo (apenas se confirmado e não for cartão)
-        if (!transaction.card_id && transaction.status === 'confirmed') {
+        // 1. Reverter saldo antigo (apenas se confirmado ou conciliado e não for cartão)
+        if (!transaction.card_id && (transaction.status === 'confirmed' || transaction.status === 'reconciled')) {
           const oldAdjustment = transaction.type === 'income' ? -transaction.amount : transaction.amount;
           await trx('accounts').where('id', transaction.account_id).increment('balance', oldAdjustment);
           
@@ -407,11 +425,11 @@ async function startServer() {
           }
         }
 
-        // 2. Aplicar novo saldo (apenas se confirmado e não for cartão)
+        // 2. Aplicar novo saldo (apenas se confirmado ou conciliado e não for cartão)
         const newAccount = await trx('accounts').where({ id: account_id, user_id: userId }).first();
         if (!newAccount) throw new Error('Conta de origem inválida');
 
-        if (status === 'confirmed') {
+        if (status === 'confirmed' || status === 'reconciled') {
           if (type === 'transfer') {
             if (!destination_account_id) throw new Error('Conta de destino necessária');
             const destAccount = await trx('accounts').where({ id: destination_account_id, user_id: userId }).first();
@@ -510,10 +528,10 @@ async function startServer() {
       const account = await db('accounts').where({ id, user_id: userId }).first();
       if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-      // Somar todas as transações confirmadas que NÃO são de cartão de crédito
+      // Somar todas as transações confirmadas ou conciliadas que NÃO são de cartão de crédito
       const transactions = await db('transactions')
         .where('account_id', id)
-        .where('status', 'confirmed')
+        .whereIn('status', ['confirmed', 'reconciled'])
         .whereNull('card_id')
         .select('type', 'amount', 'destination_account_id');
 
@@ -532,7 +550,7 @@ async function startServer() {
       // Somar transferências onde esta conta é o destino
       const incomingTransfers = await db('transactions')
         .where('destination_account_id', id)
-        .where('status', 'confirmed')
+        .whereIn('status', ['confirmed', 'reconciled'])
         .where('type', 'transfer')
         .sum('amount as total')
         .first();
@@ -826,8 +844,8 @@ async function startServer() {
       if (!transaction) return res.status(404).json({ error: 'Transação não encontrada' });
 
       await db.transaction(async (trx) => {
-        // Reverter saldo da conta apenas se confirmado
-        if (transaction.status === 'confirmed') {
+        // Reverter saldo da conta apenas se confirmado ou conciliado
+        if (transaction.status === 'confirmed' || transaction.status === 'reconciled') {
           if (transaction.card_id) {
             // Reverter fatura do cartão
             const cardAdjustment = transaction.type === 'income' ? transaction.amount : -transaction.amount;

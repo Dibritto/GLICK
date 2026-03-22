@@ -77,9 +77,6 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                       <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">Orçamento Mensal</p>
                     </div>
                   </div>
-                  <button className="p-1.5 text-gray-600 hover:text-white transition-colors">
-                    <MoreVertical size={16} />
-                  </button>
                 </div>
 
                 <div className="space-y-3">

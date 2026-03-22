@@ -38,11 +38,15 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   onAddTransaction,
   onEditTransaction
 }) => {
-  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction, reconcileTransaction } = useFinance();
+  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction, reconcileTransaction, createTransaction } = useFinance();
   const { projectedTransactions, allTransactionsSorted, totalIncome, totalExpense } = derivedData;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>(initialTypeFilter as any);
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterMonth, setFilterMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
@@ -75,10 +79,98 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                           m.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || m.type === filterType;
     const matchesCategory = filterCategory === 'all' || m.category === filterCategory;
-    return matchesSearch && matchesType && matchesCategory;
+    
+    let matchesMonth = true;
+    if (filterMonth !== 'all') {
+      const txMonth = m.date.substring(0, 7); // YYYY-MM
+      matchesMonth = txMonth === filterMonth;
+    }
+
+    return matchesSearch && matchesType && matchesCategory && matchesMonth;
   });
 
-  const totals = { income: totalIncome, expense: totalExpense };
+  // Extract unique months from transactions for the filter dropdown
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    allTransactionsSorted.forEach(t => {
+      if (t.date) {
+        months.add(t.date.substring(0, 7));
+      }
+    });
+    
+    // Ensure current, previous, and next months are always options
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Current month
+    months.add(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`);
+    
+    // Previous month
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    months.add(`${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`);
+    
+    // Next month
+    const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+    months.add(`${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`);
+    
+    return Array.from(months).sort().reverse();
+  }, [allTransactionsSorted]);
+
+  const formatMonthLabel = (monthStr: string) => {
+    const [year, month] = monthStr.split('-');
+    const date = new Date(Number(year), Number(month) - 1, 1);
+    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date);
+  };
+
+  const totals = useMemo(() => {
+    const monthMovements = allTransactionsSorted.filter(m => {
+      if (filterMonth === 'all') return true;
+      return m.date.substring(0, 7) === filterMonth;
+    });
+
+    return monthMovements.reduce(
+      (acc, curr) => {
+        if (curr.type === 'income') acc.income += Number(curr.amount);
+        if (curr.type === 'expense') acc.expense += Number(curr.amount);
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
+  }, [allTransactionsSorted, filterMonth]);
+
+  const handleExportCSV = () => {
+    if (filteredMovements.length === 0) {
+      toast.error('Não há dados para exportar com os filtros atuais.');
+      return;
+    }
+
+    const headers = ['Data', 'Descrição', 'Categoria', 'Conta', 'Tipo', 'Valor', 'Status', 'Conciliado'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredMovements.map(m => {
+        const date = m.date;
+        const desc = `"${m.description.replace(/"/g, '""')}"`;
+        const cat = `"${m.category}"`;
+        const acc = `"${m.account_name || ''}"`;
+        const type = m.type === 'income' ? 'Entrada' : m.type === 'expense' ? 'Saída' : 'Transferência';
+        const val = m.amount;
+        const status = m.status === 'confirmed' ? 'Confirmado' : m.status === 'reconciled' ? 'Conciliado' : 'Pendente';
+        const rec = m.status === 'reconciled' ? 'Sim' : 'Não';
+        return [date, desc, cat, acc, type, val, status, rec].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `fluxo_de_caixa_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Exportação concluída com sucesso.');
+  };
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -94,7 +186,10 @@ const MovementsView: React.FC<MovementsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 text-brand-blue border border-brand-blue/30 rounded-lg hover:bg-brand-blue/20 transition-all text-xs font-bold uppercase tracking-widest">
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 text-brand-blue border border-brand-blue/30 rounded-lg hover:bg-brand-blue/20 transition-all text-xs font-bold uppercase tracking-widest"
+          >
             <Download size={14} />
             Exportar
           </button>
@@ -110,7 +205,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
 
       {/* Barra de Ferramentas / Filtros */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-6 relative">
+        <div className="lg:col-span-4 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
           <input 
             type="text" 
@@ -136,6 +231,19 @@ const MovementsView: React.FC<MovementsViewProps> = ({
               {type === 'all' ? 'Todos' : type === 'income' ? 'Entradas' : type === 'expense' ? 'Saídas' : 'Transf.'}
             </button>
           ))}
+        </div>
+
+        <div className="lg:col-span-2">
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
+          >
+            <option value="all">Todo o Período</option>
+            {availableMonths.map(month => (
+              <option key={month} value={month}>{formatMonthLabel(month)}</option>
+            ))}
+          </select>
         </div>
 
         <div className="lg:col-span-2">
@@ -187,16 +295,14 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={m.id} 
                       onClick={() => {
-                        if (!String(m.id).startsWith('projected-')) {
-                          onEditTransaction?.(m);
-                        }
+                        onEditTransaction?.(m);
                       }}
                       className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${String(m.id).startsWith('projected-') ? 'opacity-50 grayscale-[0.5]' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <div className={`w-2 h-2 rounded-full ${
                           String(m.id).startsWith('projected-') ? 'bg-brand-blue border border-brand-blue/50 animate-pulse' :
-                          m.status === 'confirmed' ? 'bg-brand-green shadow-[0_0_8px_rgba(0,255,159,0.5)]' : 
+                          m.status === 'confirmed' || m.status === 'reconciled' ? 'bg-brand-green shadow-[0_0_8px_rgba(0,255,159,0.5)]' : 
                           'bg-brand-orange animate-pulse'
                         }`} />
                       </td>
@@ -223,10 +329,10 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                           {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-orange/10 text-brand-orange font-bold uppercase tracking-tighter">Pendente</span>
                           )}
-                          {m.status === 'confirmed' && m.reconciled === 0 && (
+                          {m.status === 'confirmed' && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Confirmado</span>
                           )}
-                          {m.reconciled === 1 && (
+                          {m.status === 'reconciled' && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-green/10 text-brand-green font-bold uppercase tracking-tighter flex items-center gap-1">
                               <CheckCircle size={10} /> Conciliado
                             </span>
@@ -261,18 +367,25 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                             {m.type === 'income' ? <ArrowUpCircle size={14} /> : m.type === 'expense' ? <ArrowDownCircle size={14} /> : <ArrowLeftRight size={14} />}
                             {m.type === 'income' ? '+' : m.type === 'expense' ? '-' : '⇄'} {formatCurrency(m.amount)}
                           </div>
-                          {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
+                          {m.status === 'pending' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateTransaction(m.id, { ...m, status: 'confirmed' });
+                                if (String(m.id).startsWith('projected-')) {
+                                  const { id, account_name, card_name, ...dataToCreate } = m;
+                                  createTransaction({ ...dataToCreate, status: 'confirmed' })
+                                    .then(() => toast.success('Transação projetada confirmada com sucesso!'))
+                                    .catch((err: any) => toast.error(err.message || 'Erro ao confirmar projeção'));
+                                } else {
+                                  updateTransaction(m.id, { ...m, status: 'confirmed' });
+                                }
                               }}
                               className="text-[9px] text-brand-blue hover:text-white uppercase font-bold tracking-widest border border-brand-blue/30 px-2 py-0.5 rounded hover:bg-brand-blue/20 transition-all"
                             >
                               Confirmar Agora
                             </button>
                           )}
-                          {m.status === 'confirmed' && m.reconciled === 0 && (
+                          {m.status === 'confirmed' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -293,11 +406,9 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                               handleDeleteClick(m.id);
                             }}
                             className="p-2 text-gray-600 hover:text-brand-red transition-colors"
+                            title="Excluir transação"
                           >
                             <Trash2 size={16} />
-                          </button>
-                          <button className="p-2 text-gray-600 hover:text-white transition-colors">
-                            <MoreVertical size={16} />
                           </button>
                         </div>
                       </td>
@@ -349,7 +460,9 @@ const MovementsView: React.FC<MovementsViewProps> = ({
 
         <div className="text-right">
           <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Resultado Líquido</p>
-          <p className="text-xl font-mono font-bold text-brand-blue">{formatCurrency(totals.income - totals.expense)}</p>
+          <p className={`text-xl font-mono font-bold ${totals.income - totals.expense >= 0 ? 'text-brand-blue' : 'text-brand-red'}`}>
+            {formatCurrency(totals.income - totals.expense)}
+          </p>
         </div>
       </footer>
 

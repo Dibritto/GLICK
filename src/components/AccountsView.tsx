@@ -19,18 +19,21 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface AccountsViewProps {
   onAddAccount?: () => void;
+  onAddTransfer?: () => void;
   onEditAccount?: (account: any) => void;
   onEditTransaction?: (transaction: any) => void;
 }
 
-const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount, onEditTransaction }) => {
+const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer, onEditAccount, onEditTransaction }) => {
   const { isLoading, derivedData } = useFinance();
   const { accounts, totalBalance, netWorth, freeCapital, allTransactionsSorted } = derivedData;
   const [selectedAccountId, setSelectedAccountId] = React.useState<number | null>(null);
 
   const filteredTransactions = React.useMemo(() => {
     if (selectedAccountId === null) return allTransactionsSorted.slice(0, 15);
-    return allTransactionsSorted.filter(t => t.account_id === selectedAccountId).slice(0, 15);
+    return allTransactionsSorted.filter(t => 
+      t.account_id === selectedAccountId || t.destination_account_id === selectedAccountId
+    ).slice(0, 15);
   }, [allTransactionsSorted, selectedAccountId]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
@@ -49,7 +52,10 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
         </div>
 
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-brand-lead/20 text-white border border-brand-lead/30 rounded-lg hover:bg-brand-lead/30 transition-all text-xs font-bold uppercase tracking-widest">
+          <button 
+            onClick={onAddTransfer}
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-lead/20 text-white border border-brand-lead/30 rounded-lg hover:bg-brand-lead/30 transition-all text-xs font-bold uppercase tracking-widest"
+          >
             <ArrowRightLeft size={16} />
             Transferir
           </button>
@@ -125,12 +131,12 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between relative z-10">
-                  <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                    <Zap size={12} className="text-brand-orange" />
-                    <span>Sistema Operacional</span>
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-gray-400">
+                    <Zap size={12} className="text-brand-green" />
+                    <span>Sincronização Ativa</span>
                   </div>
                   <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-green" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green/30" />
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green/30" />
                   </div>
@@ -194,38 +200,59 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onEditAccount
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((t) => (
-                    <tr 
-                      key={t.id} 
-                      className="group hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() => onEditTransaction?.(t)}
-                    >
-                      <td className="py-4 text-xs font-mono text-gray-400">{formatDate(t.date)}</td>
-                      <td className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            t.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-orange/10 text-brand-orange'
-                          }`}>
-                            {t.type === 'income' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
+                  filteredTransactions.map((t) => {
+                    let displayType = t.type;
+                    if (t.type === 'transfer') {
+                      if (selectedAccountId) {
+                        displayType = t.destination_account_id === selectedAccountId ? 'income' : 'expense';
+                      }
+                    }
+
+                    const isIncome = displayType === 'income';
+                    const isExpense = displayType === 'expense';
+                    const isTransfer = displayType === 'transfer';
+
+                    return (
+                      <tr 
+                        key={t.id} 
+                        className="group hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => onEditTransaction?.(t)}
+                      >
+                        <td className="py-4 text-xs font-mono text-gray-400">{formatDate(t.date)}</td>
+                        <td className="py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${
+                              isIncome ? 'bg-brand-green/10 text-brand-green' : 
+                              isExpense ? 'bg-brand-red/10 text-brand-red' : 
+                              'bg-brand-blue/10 text-brand-blue'
+                            }`}>
+                              {isIncome ? <ArrowUpCircle size={14} /> : 
+                               isExpense ? <ArrowDownCircle size={14} /> : 
+                               <ArrowRightLeft size={14} />}
+                            </div>
+                            <span className="text-xs font-bold text-white tracking-tight">{t.description}</span>
                           </div>
-                          <span className="text-xs font-bold text-white tracking-tight">{t.description}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 text-[10px] text-gray-500 uppercase font-bold">{t.account_name}</td>
-                      <td className={`py-4 text-xs font-mono font-bold text-right ${
-                        t.type === 'income' ? 'text-brand-green' : 'text-brand-orange'
-                      }`}>
-                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                      </td>
-                      <td className="py-4 text-center">
-                        {t.status === 'confirmed' ? (
-                          <CheckCircle2 size={14} className="text-brand-green mx-auto" />
-                        ) : (
-                          <Clock size={14} className="text-brand-orange mx-auto opacity-50" />
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="py-4 text-[10px] text-gray-500 uppercase font-bold">
+                          {isTransfer ? `${t.account_name} → ${accounts.find(a => a.id === t.destination_account_id)?.name || 'Outra Conta'}` : t.account_name}
+                        </td>
+                        <td className={`py-4 text-xs font-mono font-bold text-right ${
+                          isIncome ? 'text-brand-green' : 
+                          isExpense ? 'text-brand-red' : 
+                          'text-brand-blue'
+                        }`}>
+                          {isIncome ? '+' : isExpense ? '-' : '⇄'} {formatCurrency(t.amount)}
+                        </td>
+                        <td className="py-4 text-center">
+                          {t.status === 'confirmed' || t.status === 'reconciled' ? (
+                            <CheckCircle2 size={14} className="text-brand-green mx-auto" />
+                          ) : (
+                            <Clock size={14} className="text-brand-orange mx-auto opacity-50" />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

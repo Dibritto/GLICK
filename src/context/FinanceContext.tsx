@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { Account, Transaction, Category, Goal, Card, DerivedData } from '../types';
+import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
 
 interface FinanceContextType {
   accounts: Account[];
@@ -131,274 +132,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Cálculos Centralizados (Elimina redundância de API e lógica)
-  const derivedData = useMemo(() => {
-    // Calcular progresso das metas dinamicamente
-    const goalsWithDynamicAmount = goals.map(goal => {
-      const goalTransactions = transactions.filter(t => t.goal_id === goal.id);
-      const currentAmount = goalTransactions.reduce((acc, curr) => {
-        // Aporte na meta (dinheiro sai da conta e vai pra meta)
-        if (curr.type === 'expense' && curr.category === 'Aporte em Meta') return acc + Number(curr.amount); 
-        // Gasto real da meta (dinheiro sai da meta e vai pro mundo)
-        if (curr.type === 'expense' && curr.category !== 'Aporte em Meta') return acc - Number(curr.amount);
-        // Resgate da meta (dinheiro sai da meta e volta pra conta)
-        if (curr.type === 'income' && curr.category === 'Resgate de Meta') return acc - Number(curr.amount);
-        return acc;
-      }, 0);
-      return { ...goal, current_amount: currentAmount };
-    });
-
-    // O saldo total é a soma de todas as contas do usuário
-    const totalBalance = accounts.reduce((acc, curr) => acc + Number(curr.balance), 0);
-    const reservedBalance = goalsWithDynamicAmount.reduce((acc, curr) => acc + Number(curr.current_amount), 0);
-    
-    // Calcular faturas dos cartões dinamicamente (Saldo Devedor)
-    const cardsWithDynamicBill = cards.map(card => {
-      const cardTransactions = transactions.filter(t => t.card_id === card.id);
-      const totalSpent = cardTransactions
-        .filter(t => t.type === 'expense')
-        .reduce((acc, curr) => acc + Number(curr.amount), 0);
-      
-      const totalPaid = cardTransactions
-        .filter(t => t.type === 'income')
-        .reduce((acc, curr) => acc + Number(curr.amount), 0);
-      
-      // Saldo devedor é o total gasto menos o total pago (pagamentos registrados como receita no cartão)
-      const outstandingBalance = Math.max(0, totalSpent - totalPaid);
-      
-      return { ...card, current_bill: outstandingBalance };
-    });
-
-    const totalCardDebt = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.current_bill), 0);
-    const netWorth = totalBalance + reservedBalance - totalCardDebt;
-    const freeCapital = totalBalance - totalCardDebt; // O dinheiro das metas já saiu como despesa, então subtraímos apenas as faturas em aberto
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const startOfMonth = new Date(currentYear, currentMonth, 1);
-    
-    const confirmedTransactions = transactions.filter(t => t.status === 'confirmed');
-    const pendingTransactions = transactions.filter(t => t.status === 'pending');
-    
-    // Transações do mês atual
-    const monthlyTransactions = transactions.filter(t => {
-      const d = getLocalDate(t.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
-
-    const monthlyIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const monthlyExpenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    
-    // Projeção de Recorrência
-    // Identificar transações recorrentes que ainda não aconteceram este mês
-    let predictedIncome = 0;
-    let predictedExpense = 0;
-    const projectedTransactions: Transaction[] = [];
-
-    // Pegar transações recorrentes únicas (por descrição, categoria e valor aproximado)
-    const recurringTemplates = transactions.filter(t => t.recurrence && t.recurrence !== 'none');
-    
-    // Agrupar por descrição e categoria para pegar o template mais recente de cada recorrência
-    const uniqueTemplates = Array.from(new Map(
-      recurringTemplates
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .map(t => [`${t.description}-${t.category}`, t])
-    ).values()) as Transaction[];
-
-    uniqueTemplates.forEach(template => {
-      // Verifica se já ocorreu neste mês com base na descrição e categoria
-      // Ignoramos o valor exato pois pode variar (ex: conta de luz, reajuste salarial)
-      const alreadyHappened = monthlyTransactions.some(t => 
-        t.description === template.description && 
-        t.category === template.category
-      );
-
-      if (!alreadyHappened) {
-        if (template.type === 'income') predictedIncome += Number(template.amount);
-        if (template.type === 'expense') predictedExpense += Number(template.amount);
-        
-        const templateDate = getLocalDate(template.date);
-        const projectedDate = new Date(currentYear, currentMonth, templateDate.getDate());
-        
-        projectedTransactions.push({
-          ...template,
-          id: `projected-${template.id}`,
-          status: 'pending',
-          date: projectedDate.toISOString().split('T')[0]
-        });
-      }
-    });
-
-    // Adicionar transações pendentes explícitas ao cálculo de predição
-    predictedIncome += pendingTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    predictedExpense += pendingTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
-
-    const allTransactionsSorted = [...transactions, ...projectedTransactions].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-
-    const moneyVelocity = monthlyIncome > 0 ? (monthlyExpenses / monthlyIncome).toFixed(2) : '0.00';
-    const retentionRate = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : 0;
-
-    // Telemetria de longo prazo (últimos 30 dias)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-    
-    const last30DaysExpenses = transactions
-      .filter(t => t.type === 'expense' && t.status === 'confirmed' && getLocalDate(t.date) >= thirtyDaysAgo)
-      .reduce((acc, curr) => acc + Number(curr.amount), 0);
-    
-    const dailyAverageSpending = last30DaysExpenses / 30;
-    const dailyAverageSpend = dailyAverageSpending;
-    const financialAutonomy = dailyAverageSpending > 0 ? Math.floor(totalBalance / dailyAverageSpending) : 0;
-    const weeklyBurnRate = last30DaysExpenses / 4;
-
-    // Dados para o gráfico de fluxo de caixa (últimos 6 meses)
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    const chartData = [];
-    
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(currentYear, currentMonth - i, 1);
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      const label = monthNames[m];
-      
-      const monthTrans = transactions.filter(t => {
-        const td = getLocalDate(t.date);
-        return td.getMonth() === m && td.getFullYear() === y;
-      });
-
-      chartData.push({
-        month: label,
-        receitas: monthTrans.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0),
-        despesas: monthTrans.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0)
-      });
-    }
-
-    // Agrupamento por categoria para gráficos
-    const categoryMap: Record<string, { name: string, value: number, color: string }> = {};
-    monthlyTransactions.filter(t => t.type === 'expense').forEach(t => {
-      if (!categoryMap[t.category]) {
-        const catInfo = categories.find(c => c.name === t.category);
-        categoryMap[t.category] = { 
-          name: t.category, 
-          value: 0, 
-          color: catInfo?.color || '#8E9299' 
-        };
-      }
-      categoryMap[t.category].value += Number(t.amount);
-    });
-
-    const totalCardLimit = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.limit), 0);
-    const totalCardUsed = cardsWithDynamicBill.reduce((acc, curr) => acc + Number(curr.current_bill || 0), 0);
-    const completedGoalsCount = goalsWithDynamicAmount.filter(g => Number(g.current_amount) >= Number(g.target_amount)).length;
-
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
-
-    // Calcular variação percentual em relação ao mês anterior
-    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
-    const pm = prevMonthDate.getMonth();
-    const py = prevMonthDate.getFullYear();
-    
-    const prevMonthTransactions = transactions.filter(t => {
-      const td = getLocalDate(t.date);
-      return td.getMonth() === pm && td.getFullYear() === py;
-    });
-    
-    const prevMonthIncome = prevMonthTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const prevMonthExpense = prevMonthTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    
-    const incomeChange = prevMonthIncome > 0 ? ((monthlyIncome - prevMonthIncome) / prevMonthIncome) * 100 : 0;
-    const expenseChange = prevMonthExpense > 0 ? ((monthlyExpenses - prevMonthExpense) / prevMonthExpense) * 100 : 0;
-
-    // Calcular saldo projetado por conta
-    const accountsWithProjections = accounts.map(acc => {
-      // Transações pendentes e projetadas vinculadas a esta conta
-      const accPending = pendingTransactions.filter(t => t.account_id === acc.id || t.destination_account_id === acc.id);
-      const accProjected = projectedTransactions.filter(t => t.account_id === acc.id || t.destination_account_id === acc.id);
-      
-      const allFuture = [...accPending, ...accProjected];
-      
-      const futureIncome = allFuture.reduce((sum, t) => {
-        if (t.type === 'income' && t.account_id === acc.id) return sum + Number(t.amount);
-        if (t.type === 'transfer' && t.destination_account_id === acc.id) return sum + Number(t.amount);
-        return sum;
-      }, 0);
-      
-      const futureExpense = allFuture.reduce((sum, t) => {
-        if (t.type === 'expense' && t.account_id === acc.id) return sum + Number(t.amount);
-        if (t.type === 'transfer' && t.account_id === acc.id) return sum + Number(t.amount);
-        return sum;
-      }, 0);
-      
-      return {
-        ...acc,
-        projected_balance: Number(acc.balance) + futureIncome - futureExpense
-      };
-    });
-
-    const categoriesWithSpent = categories.map(cat => {
-      const spent = monthlyTransactions
-        .filter(t => t.category === cat.name && t.type === 'expense')
-        .reduce((acc, curr) => acc + Number(curr.amount), 0);
-      return { ...cat, spent };
-    });
-
-    const pendingIncome = pendingTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const pendingExpense = pendingTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
-
-    return {
-      accounts: accountsWithProjections,
-      totalBalance: coreStats?.totalBalance ?? totalBalance,
-      reservedBalance: coreStats?.reservedBalance ?? reservedBalance,
-      committedBalance: coreStats?.committedBalance ?? (totalCardDebt + pendingExpense),
-      totalCardDebt,
-      netWorth: coreStats?.netWorth ?? netWorth,
-      freeCapital: coreStats?.freeBalance ?? freeCapital,
-      monthlyIncome,
-      monthlyExpenses,
-      predictedIncome,
-      predictedExpense,
-      projectedBalance: coreStats?.projectedBalance ?? (totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense),
-      moneyVelocity: coreStats?.dailyAverageSpend ? coreStats.dailyAverageSpend.toFixed(2) : moneyVelocity,
-      retentionRate,
-      dailyAverageSpending: coreStats?.dailyAverageSpend ?? dailyAverageSpending,
-      dailyAverageSpend: coreStats?.dailyAverageSpend ?? dailyAverageSpending,
-      financialAutonomy: coreStats?.financialAutonomy ?? financialAutonomy,
-      weeklyBurnRate,
-      chartData,
-      spendingByCategory: Object.values(categoryMap).sort((a, b) => b.value - a.value),
-      incomeByCategory: Object.values(transactions.filter(t => t.type === 'income').reduce((acc, t) => {
-        if (!acc[t.category]) {
-          const catInfo = categories.find(c => c.name === t.category);
-          acc[t.category] = { name: t.category, value: 0, color: catInfo?.color || '#00FF9F' };
-        }
-        acc[t.category].value += Number(t.amount);
-        return acc;
-      }, {} as Record<string, { name: string, value: number, color: string }>)).sort((a, b) => b.value - a.value),
-      projectedTransactions,
-      confirmedTransactions,
-      pendingTransactions,
-      allTransactionsSorted,
-      totalCardLimit,
-      totalCardUsed,
-      completedGoalsCount,
-      totalIncome,
-      totalExpense,
-      incomeChange,
-      expenseChange,
-      cardsWithDynamicBill,
-      goalsWithDynamicAmount,
-      categoriesWithSpent,
-      coreStats,
-      cryptoAssets,
-      cryptoTransactions,
-      investmentAssets,
-      investmentTransactions
-    };
-  }, [accounts, transactions, categories, goals, cards, coreStats, cryptoAssets, cryptoTransactions, investmentAssets, investmentTransactions]);
+  const derivedData = useFinanceCalculations({
+    accounts,
+    transactions,
+    categories,
+    goals,
+    cards,
+    coreStats,
+    cryptoAssets,
+    cryptoTransactions,
+    investmentAssets,
+    investmentTransactions
+  });
 
   const apiAction = useCallback(async (url: string, method: string, body?: any) => {
     if (!token) return;
@@ -443,7 +188,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const reconcileTransaction = async (id: string) => {
     await apiAction(`/api/transactions/${id}/reconcile`, 'PATCH');
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, reconciled: 1 } : t));
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: 'reconciled' } : t));
     debouncedRefreshData();
   };
   
