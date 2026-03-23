@@ -7,7 +7,8 @@ import {
   PieChart,
   ChevronRight,
   MoreVertical,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
@@ -22,30 +23,72 @@ interface CategoriesViewProps {
 const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCategory }) => {
   const { categories, derivedData, isLoading } = useFinance();
   const { monthlyExpenses: totalExpense, spendingByCategory } = derivedData;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+
+  const filteredCategories = categories.filter(cat => {
+    const matchesSearch = cat.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'all' || cat.type === filterType;
+    return matchesSearch && matchesType;
+  });
 
   const offenders = spendingByCategory.slice(0, 3);
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      {/* Cabeçalho */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
-            Categorias & Orçamentos
-          </h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
-            Classificação de dados e controle de teto de gastos
-          </p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Categorias & Orçamentos
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Classificação de dados e controle de teto de gastos
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar por nome da categoria..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
 
-        <button 
-          onClick={onAddCategory}
-          className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
-        >
-          <Plus size={16} />
-          Nova Categoria
-        </button>
-      </header>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={onAddCategory}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+          >
+            <Plus size={14} />
+            Nova Categoria
+          </button>
+        </div>
+      </div>
+
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'income', 'expense'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`
+                min-w-[100px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
+                ${filterType === type 
+                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
+                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+              `}
+            >
+              {type === 'all' ? 'Todas' : type === 'income' ? 'Entradas' : 'Saídas'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Grid de Categorias */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -56,7 +99,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
           </div>
         ) : (
           <>
-            {categories.map((cat, i) => (
+            {filteredCategories.map((cat, i) => (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

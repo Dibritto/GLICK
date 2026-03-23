@@ -11,7 +11,8 @@ import {
   ArrowDownCircle,
   CheckCircle2,
   Clock,
-  History
+  History,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
@@ -28,6 +29,16 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
   const { isLoading, derivedData } = useFinance();
   const { accounts, totalBalance, netWorth, freeCapital, allTransactionsSorted } = derivedData;
   const [selectedAccountId, setSelectedAccountId] = React.useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [filterType, setFilterType] = React.useState<'all' | 'checking' | 'savings'>('all');
+
+  const filteredAccounts = React.useMemo(() => {
+    return accounts.filter(acc => {
+      const matchesSearch = acc.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = filterType === 'all' || acc.type === filterType;
+      return matchesSearch && matchesType;
+    });
+  }, [accounts, searchTerm, filterType]);
 
   const filteredTransactions = React.useMemo(() => {
     if (selectedAccountId === null) return allTransactionsSorted.slice(0, 15);
@@ -39,35 +50,67 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      {/* Cabeçalho */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
-            Gestão de Contas
-          </h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
-            Monitoramento de liquidez e custódia bancária
-          </p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Gestão de Contas
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Monitoramento de liquidez e custódia bancária
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar por nome do banco ou conta..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <button 
             onClick={onAddTransfer}
-            className="flex items-center gap-2 px-6 py-2.5 bg-brand-lead/20 text-white border border-brand-lead/30 rounded-lg hover:bg-brand-lead/30 transition-all text-xs font-bold uppercase tracking-widest"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
           >
-            <ArrowRightLeft size={16} />
+            <ArrowRightLeft size={14} />
             Transferir
           </button>
           <button 
             onClick={onAddAccount}
-            className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
           >
-            <Plus size={16} />
+            <Plus size={14} />
             Nova Conta
           </button>
         </div>
-      </header>
+      </div>
+
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'checking', 'savings'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`
+                min-w-[100px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
+                ${filterType === type 
+                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
+                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+              `}
+            >
+              {type === 'all' ? 'Todas' : type === 'checking' ? 'Corrente' : 'Poupança'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Grid de Contas */}
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
@@ -78,7 +121,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
           </div>
         ) : (
           <>
-            {accounts.map((acc, i) => (
+            {filteredAccounts.map((acc, i) => (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

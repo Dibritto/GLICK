@@ -11,7 +11,8 @@ import {
   BarChart3,
   ArrowRight,
   Shield,
-  Gauge
+  Gauge,
+  Search
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -126,32 +127,59 @@ const ForecastView: React.FC = () => {
   }, [derivedData.totalBalance, recurringTransactions, forecasts]);
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-brand-blue">
-            <Clock size={20} />
-            <h1 className="text-2xl font-black uppercase tracking-tighter italic font-serif">Projeções & Recorrências</h1>
-          </div>
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">Telemetria de Fluxo Futuro</p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Projeções & Recorrências
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Telemetria de Fluxo Futuro e Agendamentos
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar em projeções ou recorrências..."
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
-        <div className="flex gap-3">
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <button 
             onClick={() => setShowAddRecurring(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 border border-brand-blue/30 text-brand-blue rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-blue/20 transition-all"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
           >
             <Plus size={14} />
             Recorrência
           </button>
           <button 
             onClick={() => setShowAddForecast(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-orange/10 border border-brand-orange/30 text-brand-orange rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-orange/20 transition-all"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/30 rounded-xl hover:bg-brand-orange/20 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
           >
             <Plus size={14} />
-            Previsão
+            Projeção
           </button>
         </div>
-      </header>
+      </div>
+
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="min-w-[150px]">
+          <select
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="all">Todas as Categorias</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* Telemetry Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

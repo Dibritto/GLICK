@@ -179,37 +179,18 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   return (
     <div className="p-4 md:p-8 space-y-6">
       {/* Cabeçalho Técnico */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
-            {title}
-          </h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
-            Fluxo de caixa em tempo real — Telemetria Financeira
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 text-brand-blue border border-brand-blue/30 rounded-lg hover:bg-brand-blue/20 transition-all text-xs font-bold uppercase tracking-widest"
-          >
-            <Download size={14} />
-            Exportar
-          </button>
-          <button 
-            onClick={onAddTransaction}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(44,199,255,0.3)]"
-          >
-            <Plus size={14} />
-            Nova Transação
-          </button>
-        </div>
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          {title}
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Fluxo de caixa em tempo real — Telemetria Financeira
+        </p>
       </header>
 
-      {/* Barra de Ferramentas / Filtros */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-4 relative">
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
           <input 
             type="text" 
@@ -220,28 +201,31 @@ const MovementsView: React.FC<MovementsViewProps> = ({
           />
         </div>
 
-        <div className="lg:col-span-4 flex gap-2">
-          {(['all', 'income', 'expense', 'transfer'] as const).map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`
-                flex-1 py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
-                ${filterType === type 
-                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
-                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
-              `}
-            >
-              {type === 'all' ? 'Todos' : type === 'income' ? 'Entradas' : type === 'expense' ? 'Saídas' : 'Transf.'}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={handleExportCSV}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
+          >
+            <Download size={14} />
+            Exportar
+          </button>
+          <button 
+            onClick={onAddTransaction}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+          >
+            <Plus size={14} />
+            Nova Transação
+          </button>
         </div>
+      </div>
 
-        <div className="lg:col-span-2">
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="min-w-[150px]">
           <select
             value={filterMonth}
             onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
           >
             <option value="all">Todo o Período</option>
             {availableMonths.map(month => (
@@ -250,17 +234,34 @@ const MovementsView: React.FC<MovementsViewProps> = ({
           </select>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-[150px]">
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
           >
             <option value="all">Todas Categorias</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
           </select>
+        </div>
+
+        <div className="flex gap-2 flex-wrap ml-auto">
+          {(['all', 'income', 'expense', 'transfer'] as const).map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`
+                min-w-[80px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
+                ${filterType === type 
+                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
+                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+              `}
+            >
+              {type === 'all' ? 'Todos' : type === 'income' ? 'Entradas' : type === 'expense' ? 'Saídas' : 'Transf.'}
+            </button>
+          ))}
         </div>
       </div>
 

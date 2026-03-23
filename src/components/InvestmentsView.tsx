@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight } from 'lucide-react';
+import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface InvestmentsViewProps {
@@ -93,22 +93,56 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <TrendingUp className="text-brand-green" />
-            Investimentos
-          </h1>
-          <p className="text-gray-400 text-sm">Gerencie seu portfólio de investimentos</p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Investimentos
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Gestão de Custódia e Telemetria de Mercado
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar por símbolo ou nome do ativo..."
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-green/20 text-brand-green rounded-lg hover:bg-brand-green/30 transition-colors"
-        >
-          <Plus size={18} />
-          Nova Transação
-        </button>
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+          >
+            <Plus size={14} />
+            Nova Transação
+          </button>
+        </div>
+      </div>
+
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'stocks', 'fii', 'fixed', 'crypto'] as const).map((type) => (
+            <button
+              key={type}
+              className={`
+                min-w-[100px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
+                ${type === 'all' 
+                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
+                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+              `}
+            >
+              {type === 'all' ? 'Todos' : type === 'stocks' ? 'Ações' : type === 'fii' ? 'FIIs' : type === 'fixed' ? 'Renda Fixa' : 'Cripto'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -7,7 +7,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Zap,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
@@ -24,28 +25,48 @@ interface CardsViewProps {
 const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
   const { isLoading, derivedData } = useFinance();
   const { totalCardLimit, totalCardUsed, cardsWithDynamicBill } = derivedData;
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredCards = cardsWithDynamicBill.filter(card => 
+    card.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    card.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      {/* Cabeçalho */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
-            Controle de Cartões
-          </h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
-            Gestão de crédito, limites e ciclos de fatura
-          </p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Controle de Cartões
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Gestão de crédito, limites e ciclos de fatura
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar por banco ou nome do cartão..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
 
-        <button 
-          onClick={onAddCard}
-          className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-lg hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
-        >
-          <Plus size={16} />
-          Adicionar Cartão
-        </button>
-      </header>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={onAddCard}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+          >
+            <Plus size={14} />
+            Adicionar Cartão
+          </button>
+        </div>
+      </div>
 
       {/* Grid de Cartões */}
       <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10">
@@ -56,7 +77,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
           </div>
         ) : (
           <>
-            {cardsWithDynamicBill.map((card, i) => (
+            {filteredCards.map((card, i) => (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

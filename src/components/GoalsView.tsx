@@ -7,7 +7,8 @@ import {
   ChevronRight,
   Trophy,
   Zap,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
@@ -26,28 +27,73 @@ interface GoalsViewProps {
 const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds, onWithdrawFunds }) => {
   const { isLoading, derivedData } = useFinance();
   const { completedGoalsCount, goalsWithDynamicAmount: goals } = derivedData;
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'completed'>('all');
+
+  const filteredGoals = goals.filter(goal => {
+    const matchesSearch = goal.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const isCompleted = Number(goal.current_amount) >= Number(goal.target_amount);
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'active' && !isCompleted) || 
+      (filterStatus === 'completed' && isCompleted);
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      {/* Cabeçalho */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
-            Metas & Objetivos
-          </h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
-            Planejamento estratégico e acumulação de capital
-          </p>
+    <div className="p-4 md:p-8 space-y-6">
+      {/* Cabeçalho Técnico */}
+      <header className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+          Metas & Objetivos
+        </h2>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
+          Planejamento estratégico e acumulação de capital
+        </p>
+      </header>
+
+      {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder="Pesquisar por nome da meta..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+          />
         </div>
 
-        <button 
-          onClick={onAddGoal}
-          className="flex items-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-xs font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(44,199,255,0.2)]"
-        >
-          <Plus size={16} />
-          Nova Meta
-        </button>
-      </header>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={onAddGoal}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+          >
+            <Plus size={14} />
+            Nova Meta
+          </button>
+        </div>
+      </div>
+
+      {/* Barra de Ferramentas - Linha 2: Filtros */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'active', 'completed'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`
+                min-w-[100px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
+                ${filterStatus === status 
+                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
+                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+              `}
+            >
+              {status === 'all' ? 'Todas' : status === 'active' ? 'Em Andamento' : 'Concluídas'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Grid de Metas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -58,7 +104,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
           </div>
         ) : (
           <>
-            {goals.map((goal, i) => (
+            {filteredGoals.map((goal, i) => (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}

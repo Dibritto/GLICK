@@ -130,8 +130,8 @@ const MainConsole: React.FC<MainConsoleProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <div className="glass-panel technical-border p-5 md:p-6 rounded-lg hover:border-brand-blue/30 transition-all group card-container min-w-0">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Saldo Total</p>
+          <div className="glass-panel technical-border p-5 md:p-6 rounded-lg hover:border-brand-blue/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] group card-container min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold truncate">Saldo Total</p>
             <div className="fluid-value font-mono font-bold text-white">
               <span className="currency-symbol">R$</span>
               {formatCurrency(totalBalance, false)}
