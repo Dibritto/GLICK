@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Button } from './ui/Button';
 
 interface ModalProps {
   isOpen: boolean;
@@ -57,12 +58,14 @@ const Modal: React.FC<ModalProps> = ({
                 </h3>
                 <div className="h-0.5 w-12 bg-brand-blue rounded-full" />
               </div>
-              <button 
+              <Button 
                 onClick={onClose}
+                variant="ghost"
+                size="icon"
                 className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-xl transition-all"
               >
                 <X size={20} />
-              </button>
+              </Button>
             </div>
 
             {/* Body */}

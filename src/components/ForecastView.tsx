@@ -27,6 +27,10 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { toast } from 'sonner';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import Modal from './Modal';
 
 const ForecastView: React.FC = () => {
   const { 
@@ -140,50 +144,53 @@ const ForecastView: React.FC = () => {
 
       {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
       <div className="flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input 
+        <div className="flex-1 w-full">
+          <Input 
             type="text" 
             placeholder="Pesquisar em projeções ou recorrências..."
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+            icon={<Search size={16} />}
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <button 
+          <Button 
+            variant="outline"
+            size="md"
             onClick={() => setShowAddRecurring(true)}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
+            className="flex-1 md:flex-none gap-2 text-[10px] font-bold uppercase tracking-[0.2em] border-brand-blue/30 text-brand-blue hover:bg-brand-blue/10"
           >
             <Plus size={14} />
             Recorrência
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="outline"
+            size="md"
             onClick={() => setShowAddForecast(true)}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/30 rounded-xl hover:bg-brand-orange/20 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
+            className="flex-1 md:flex-none gap-2 text-[10px] font-bold uppercase tracking-[0.2em] border-brand-orange/30 text-brand-orange hover:bg-brand-orange/20"
           >
             <Plus size={14} />
             Projeção
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Barra de Ferramentas - Linha 2: Filtros */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="min-w-[150px]">
-          <select
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
+          <Select
+            icon={<Calendar size={14} />}
           >
             <option value="all">Todas as Categorias</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
       {/* Telemetry Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-lg">
               <Gauge size={20} />
@@ -196,7 +203,7 @@ const ForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-green/10 text-brand-green rounded-lg">
               <Shield size={20} />
@@ -209,7 +216,7 @@ const ForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-orange/10 text-brand-orange rounded-lg">
               <TrendingUp size={20} />
@@ -224,7 +231,7 @@ const ForecastView: React.FC = () => {
       </div>
 
       {/* Projection Chart */}
-      <section className="glass-panel technical-border p-6 rounded-xl space-y-6">
+      <section className="glass-panel technical-border p-6 rounded-xl space-y-6 interactive-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 size={18} className="text-brand-blue" />
@@ -283,7 +290,7 @@ const ForecastView: React.FC = () => {
           <div className="space-y-3">
             {recurringTransactions.length > 0 ? (
               recurringTransactions.map((item) => (
-                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-blue/30 transition-all">
+                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-blue/30 transition-all interactive-card">
                   <div className="flex items-center gap-4">
                     <div className={`p-2 rounded-lg ${item.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'}`}>
                       {item.type === 'income' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
@@ -303,12 +310,14 @@ const ForecastView: React.FC = () => {
                     <p className={`text-sm font-mono font-bold ${item.type === 'income' ? 'text-brand-green' : 'text-brand-red'}`}>
                       {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount)}
                     </p>
-                    <button 
+                    <Button 
+                      variant="ghost"
+                      size="icon"
                       onClick={() => deleteRecurringTransaction(item.id)}
-                      className="p-2 text-gray-600 hover:text-brand-red transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-gray-600 hover:text-brand-red opacity-0 group-hover:opacity-100"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -329,7 +338,7 @@ const ForecastView: React.FC = () => {
           <div className="space-y-3">
             {forecasts.length > 0 ? (
               forecasts.map((item) => (
-                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-orange/30 transition-all">
+                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-orange/30 transition-all interactive-card">
                   <div className="flex items-center gap-4">
                     <div className={`p-2 rounded-lg ${item.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'}`}>
                       <Activity size={16} />
@@ -347,12 +356,14 @@ const ForecastView: React.FC = () => {
                     <p className={`text-sm font-mono font-bold ${item.type === 'income' ? 'text-brand-green' : 'text-brand-red'}`}>
                       {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount)}
                     </p>
-                    <button 
+                    <Button 
+                      variant="ghost"
+                      size="icon"
                       onClick={() => deleteForecast(item.id)}
-                      className="p-2 text-gray-600 hover:text-brand-red transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-gray-600 hover:text-brand-red opacity-0 group-hover:opacity-100"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -366,180 +377,129 @@ const ForecastView: React.FC = () => {
       </div>
 
       {/* Modals */}
-      {showAddRecurring && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-brand-graphite border border-brand-lead/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+      <Modal
+        isOpen={showAddRecurring}
+        onClose={() => setShowAddRecurring(false)}
+        title="Nova Recorrência"
+      >
+        <form onSubmit={handleAddRecurring} className="space-y-4">
+          <Input 
+            label="Descrição"
+            type="text" 
+            required
+            value={newRecurring.description}
+            onChange={e => setNewRecurring({...newRecurring, description: e.target.value})}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Valor"
+              type="number" 
+              required
+              value={newRecurring.amount}
+              onChange={e => setNewRecurring({...newRecurring, amount: e.target.value})}
+            />
+            <Select 
+              label="Tipo"
+              value={newRecurring.type}
+              onChange={e => setNewRecurring({...newRecurring, type: e.target.value})}
+            >
+              <option value="expense">Despesa</option>
+              <option value="income">Receita</option>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Select 
+              label="Frequência"
+              value={newRecurring.frequency}
+              onChange={e => setNewRecurring({...newRecurring, frequency: e.target.value})}
+            >
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+              <option value="yearly">Anual</option>
+            </Select>
+            <Input 
+              label="Próxima Data"
+              type="date" 
+              required
+              value={newRecurring.next_date}
+              onChange={e => setNewRecurring({...newRecurring, next_date: e.target.value})}
+            />
+          </div>
+          <Select 
+            label="Categoria"
+            required
+            value={newRecurring.category}
+            onChange={e => setNewRecurring({...newRecurring, category: e.target.value})}
           >
-            <div className="p-6 border-b border-brand-lead/20 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white uppercase italic font-serif">Nova Recorrência</h3>
-              <button onClick={() => setShowAddRecurring(false)} className="text-gray-500 hover:text-white">
-                <Plus size={24} className="rotate-45" />
-              </button>
-            </div>
-            <form onSubmit={handleAddRecurring} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-gray-500">Descrição</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newRecurring.description}
-                  onChange={e => setNewRecurring({...newRecurring, description: e.target.value})}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Valor</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={newRecurring.amount}
-                    onChange={e => setNewRecurring({...newRecurring, amount: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Tipo</label>
-                  <select 
-                    value={newRecurring.type}
-                    onChange={e => setNewRecurring({...newRecurring, type: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  >
-                    <option value="expense">Despesa</option>
-                    <option value="income">Receita</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Frequência</label>
-                  <select 
-                    value={newRecurring.frequency}
-                    onChange={e => setNewRecurring({...newRecurring, frequency: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  >
-                    <option value="weekly">Semanal</option>
-                    <option value="monthly">Mensal</option>
-                    <option value="yearly">Anual</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Próxima Data</label>
-                  <input 
-                    type="date" 
-                    required
-                    value={newRecurring.next_date}
-                    onChange={e => setNewRecurring({...newRecurring, next_date: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-gray-500">Categoria</label>
-                <select 
-                  required
-                  value={newRecurring.category}
-                  onChange={e => setNewRecurring({...newRecurring, category: e.target.value})}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                >
-                  <option value="">Selecionar Categoria</option>
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
-              <button 
-                type="submit"
-                className="w-full py-3 bg-brand-blue text-brand-graphite font-black uppercase tracking-widest text-xs rounded-xl mt-4 hover:bg-white transition-colors"
-              >
-                Agendar Recorrência
-              </button>
-            </form>
-          </motion.div>
-        </div>
-      )}
+            <option value="">Selecionar Categoria</option>
+            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </Select>
+          <Button 
+            type="submit"
+            variant="primary"
+            className="w-full py-3 font-black uppercase tracking-widest text-xs rounded-xl mt-4"
+          >
+            Agendar Recorrência
+          </Button>
+        </form>
+      </Modal>
 
-      {showAddForecast && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-brand-graphite border border-brand-lead/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+      <Modal
+        isOpen={showAddForecast}
+        onClose={() => setShowAddForecast(false)}
+        title="Nova Previsão"
+      >
+        <form onSubmit={handleAddForecast} className="space-y-4">
+          <Input 
+            label="Descrição"
+            type="text" 
+            required
+            value={newForecast.description}
+            onChange={e => setNewForecast({...newForecast, description: e.target.value})}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Valor"
+              type="number" 
+              required
+              value={newForecast.amount}
+              onChange={e => setNewForecast({...newForecast, amount: e.target.value})}
+            />
+            <Select 
+              label="Tipo"
+              value={newForecast.type}
+              onChange={e => setNewForecast({...newForecast, type: e.target.value})}
+            >
+              <option value="income">Receita</option>
+              <option value="expense">Despesa</option>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Mês"
+              type="number" 
+              min="1" max="12"
+              required
+              value={newForecast.month}
+              onChange={e => setNewForecast({...newForecast, month: Number(e.target.value)})}
+            />
+            <Input 
+              label="Ano"
+              type="number" 
+              required
+              value={newForecast.year}
+              onChange={e => setNewForecast({...newForecast, year: Number(e.target.value)})}
+            />
+          </div>
+          <Button 
+            type="submit"
+            variant="primary"
+            className="w-full py-3 bg-brand-orange text-brand-graphite font-black uppercase tracking-widest text-xs rounded-xl mt-4"
           >
-            <div className="p-6 border-b border-brand-lead/20 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white uppercase italic font-serif">Nova Previsão</h3>
-              <button onClick={() => setShowAddForecast(false)} className="text-gray-500 hover:text-white">
-                <Plus size={24} className="rotate-45" />
-              </button>
-            </div>
-            <form onSubmit={handleAddForecast} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-gray-500">Descrição</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newForecast.description}
-                  onChange={e => setNewForecast({...newForecast, description: e.target.value})}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Valor</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={newForecast.amount}
-                    onChange={e => setNewForecast({...newForecast, amount: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Tipo</label>
-                  <select 
-                    value={newForecast.type}
-                    onChange={e => setNewForecast({...newForecast, type: e.target.value})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  >
-                    <option value="income">Receita</option>
-                    <option value="expense">Despesa</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Mês</label>
-                  <input 
-                    type="number" 
-                    min="1" max="12"
-                    required
-                    value={newForecast.month}
-                    onChange={e => setNewForecast({...newForecast, month: Number(e.target.value)})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-500">Ano</label>
-                  <input 
-                    type="number" 
-                    required
-                    value={newForecast.year}
-                    onChange={e => setNewForecast({...newForecast, year: Number(e.target.value)})}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg px-4 py-2.5 text-sm text-white focus:border-brand-blue outline-none"
-                  />
-                </div>
-              </div>
-              <button 
-                type="submit"
-                className="w-full py-3 bg-brand-orange text-brand-graphite font-black uppercase tracking-widest text-xs rounded-xl mt-4 hover:bg-white transition-colors"
-              >
-                Adicionar Previsão
-              </button>
-            </form>
-          </motion.div>
-        </div>
-      )}
+            Adicionar Previsão
+          </Button>
+        </form>
+      </Modal>
     </div>
   );
 };

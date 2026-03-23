@@ -4,6 +4,8 @@ import { Zap, TrendingUp, Users, Lock, CheckCircle, Clock, LayoutDashboard, Gem 
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { formatCurrency } from '../utils/formatters';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
 
 const ModuleMarketplace: React.FC = () => {
   const { modules, activateModule } = useFinance();
@@ -45,7 +47,7 @@ const ModuleMarketplace: React.FC = () => {
             key={module.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`glass-panel technical-border p-6 rounded-xl flex flex-col h-full ${
+            className={`glass-panel technical-border p-6 rounded-xl flex flex-col h-full interactive-card ${
               module.status === 'locked' ? 'opacity-90' : 'border-brand-blue/30'
             }`}
           >
@@ -58,19 +60,19 @@ const ModuleMarketplace: React.FC = () => {
                 {getIcon(module.icon)}
               </div>
               {module.status === 'active' && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-green flex items-center gap-1">
+                <Badge variant="success" className="flex items-center gap-1">
                   <CheckCircle size={12} /> Ativo
-                </span>
+                </Badge>
               )}
               {module.status === 'trial' && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-brand-orange flex items-center gap-1">
+                <Badge variant="warning" className="flex items-center gap-1">
                   <Clock size={12} /> Trial
-                </span>
+                </Badge>
               )}
               {module.status === 'locked' && (
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1">
+                <Badge variant="neutral" className="flex items-center gap-1">
                   <Lock size={12} /> Disponível
-                </span>
+                </Badge>
               )}
             </div>
 
@@ -86,27 +88,30 @@ const ModuleMarketplace: React.FC = () => {
               </div>
 
               {module.status === 'locked' ? (
-                <button
+                <Button
                   onClick={() => handleActivate(module.slug)}
                   disabled={activating === module.slug}
+                  variant="primary"
                   className="w-full py-3 bg-brand-blue text-brand-lead font-bold rounded-lg hover:bg-brand-blue/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {activating === module.slug ? 'Ativando...' : Number(module.price) === 0 ? 'Ativar Módulo' : `Ativar Teste (${module.trial_days} dias)`}
-                </button>
+                </Button>
               ) : module.status === 'trial' ? (
-                <button
+                <Button
                   disabled
+                  variant="outline"
                   className="w-full py-3 bg-brand-orange/20 text-brand-orange font-bold rounded-lg cursor-not-allowed"
                 >
                   Em Período de Teste
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
                   disabled
+                  variant="ghost"
                   className="w-full py-3 bg-gray-800 text-gray-500 font-bold rounded-lg cursor-not-allowed"
                 >
                   Módulo Instalado
-                </button>
+                </Button>
               )}
             </div>
           </motion.div>

@@ -25,6 +25,8 @@ import { useAuth } from '../context/AuthContext';
 import { useFinance } from '../context/FinanceContext';
 import { toast } from 'sonner';
 import ConfirmationModal from './ConfirmationModal';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 const SettingsView: React.FC = () => {
   const { user, logout, updateUser, token } = useAuth();
@@ -244,10 +246,10 @@ const SettingsView: React.FC = () => {
   ];
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-4xl">
+    <section className="p-4 md:p-8 space-y-8 max-w-4xl" aria-labelledby="settings-title">
       {/* Cabeçalho */}
       <header className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+        <h2 id="settings-title" className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
           Configurações do Sistema
         </h2>
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
@@ -256,28 +258,28 @@ const SettingsView: React.FC = () => {
       </header>
       
       {/* Telemetria de Sistema */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <ul className="grid grid-cols-2 md:grid-cols-4 gap-4" role="list" aria-label="Telemetria do sistema" aria-live="polite">
         {[
           { label: 'Status do Core', value: systemHealth?.status === 'ok' ? 'Operacional' : 'Instável', color: systemHealth?.status === 'ok' ? 'text-emerald-500' : 'text-brand-red' },
           { label: 'Modo Banco', value: systemHealth?.dbMode || 'SQLite (Preview)', color: 'text-brand-blue' },
           { label: 'Último Check', value: systemHealth?.timestamp ? (isNaN(new Date(systemHealth.timestamp).getTime()) ? 'Data Inválida' : new Date(systemHealth.timestamp).toLocaleTimeString()) : 'Aguardando...', color: 'text-gray-400' },
           { label: 'Sessão Expira', value: '6 dias', color: 'text-orange-500' },
         ].map((stat, i) => (
-          <div key={i} className="glass-panel technical-border p-3 rounded-xl">
+          <li key={i} className="glass-panel technical-border p-3 rounded-xl interactive-card" role="listitem">
             <p className="text-[8px] uppercase tracking-widest text-gray-500 font-bold mb-1">{stat.label}</p>
             <p className={`text-xs font-mono font-bold ${stat.color}`}>{stat.value}</p>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       {/* Card de Usuário */}
-      <div className="glass-panel technical-border p-6 rounded-2xl flex items-center justify-between">
+      <article className="glass-panel technical-border p-6 rounded-2xl flex items-center justify-between interactive-card" aria-labelledby="user-profile-title">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-xl font-bold border border-brand-blue/30">
+          <div className="w-16 h-16 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-xl font-bold border border-brand-blue/30" aria-hidden="true">
             {user?.name?.substring(0, 2).toUpperCase()}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">{user?.name}</h3>
+            <h3 id="user-profile-title" className="text-lg font-bold text-white">{user?.name}</h3>
             <p className="text-xs text-gray-500">{user?.email}</p>
             <div className="mt-2 inline-flex items-center gap-2 px-2 py-0.5 rounded bg-brand-blue/10 text-brand-blue text-[9px] font-bold uppercase tracking-widest">
               Plano Pro Ativo
@@ -287,96 +289,106 @@ const SettingsView: React.FC = () => {
         <button 
           onClick={logout}
           className="p-3 rounded-xl bg-brand-red/10 text-brand-red hover:bg-brand-red/20 transition-colors"
+          aria-label="Sair da conta"
         >
-          <LogOut size={20} />
+          <LogOut size={20} aria-hidden="true" />
         </button>
-      </div>
+      </article>
 
       {/* Seções de Configuração */}
-      <div className="space-y-8">
+      <nav className="space-y-8" aria-label="Menu de configurações">
         {sections.map((section, idx) => (
           <div key={idx} className="space-y-4">
-            <h3 className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black italic font-serif opacity-70 px-2">
+            <h3 id={`section-${idx}-title`} className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black italic font-serif opacity-70 px-2">
               — {section.title}
             </h3>
-            <div className="grid grid-cols-1 gap-2">
+            <ul className="grid grid-cols-1 gap-2" role="list" aria-labelledby={`section-${idx}-title`}>
               {section.items.map((item, i) => (
-                <motion.button
-                  whileHover={{ x: 4 }}
-                  key={i}
-                  onClick={item.onClick}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl glass-panel technical-border hover:bg-white/5 transition-all group text-left ${item.danger ? 'hover:border-brand-red/50' : ''}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-lg bg-brand-gray-deep transition-colors ${item.danger ? 'text-brand-red' : 'text-gray-400 group-hover:text-brand-blue'}`}>
-                      <item.icon size={18} />
+                <li key={i} role="listitem">
+                  <motion.button
+                    whileHover={{ x: 4 }}
+                    onClick={item.onClick}
+                    className={`w-full flex items-center justify-between p-4 rounded-xl glass-panel technical-border hover:bg-white/5 transition-all group text-left interactive-card ${item.danger ? 'hover:border-brand-red/50' : ''}`}
+                    aria-label={`${item.label}: ${item.desc}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2.5 rounded-lg bg-brand-gray-deep transition-colors ${item.danger ? 'text-brand-red' : 'text-gray-400 group-hover:text-brand-blue'}`}>
+                        <item.icon size={18} aria-hidden="true" />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold transition-colors ${item.danger ? 'text-brand-red' : 'text-white group-hover:text-brand-blue'}`}>{item.label}</p>
+                        <p className="text-[10px] text-gray-500">{item.desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className={`text-sm font-bold transition-colors ${item.danger ? 'text-brand-red' : 'text-white group-hover:text-brand-blue'}`}>{item.label}</p>
-                      <p className="text-[10px] text-gray-500">{item.desc}</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-600 group-hover:text-white transition-colors" />
-                </motion.button>
+                    <ChevronRight size={16} className="text-gray-600 group-hover:text-white transition-colors" aria-hidden="true" />
+                  </motion.button>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         ))}
-      </div>
+      </nav>
 
       {/* Modal de Edição de Perfil */}
       <AnimatePresence>
         {isEditingProfile && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-profile-title"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md glass-panel technical-border rounded-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white uppercase italic font-serif">Editar Perfil</h3>
-                <button onClick={() => setIsEditingProfile(false)} className="text-gray-500 hover:text-white">
-                  <X size={20} />
+              <header className="p-6 border-b border-white/10 flex items-center justify-between">
+                <h3 id="edit-profile-title" className="text-lg font-bold text-white uppercase italic font-serif">Editar Perfil</h3>
+                <button 
+                  onClick={() => setIsEditingProfile(false)} 
+                  className="text-gray-500 hover:text-white"
+                  aria-label="Fechar modal"
+                >
+                  <X size={20} aria-hidden="true" />
                 </button>
-              </div>
+              </header>
               <form onSubmit={handleUpdateProfile} className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Nome Completo</label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full bg-brand-gray-deep border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-brand-blue outline-none transition-colors"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">E-mail</label>
-                  <input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full bg-brand-gray-deep border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-brand-blue outline-none transition-colors"
-                    required
-                  />
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <button
+                <Input
+                  id="full-name"
+                  label="Nome Completo"
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                />
+                <Input
+                  id="email"
+                  label="E-mail"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  required
+                />
+                <footer className="pt-4 flex gap-3">
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => setIsEditingProfile(false)}
                     className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-sm font-bold text-gray-400 hover:bg-white/5 transition-colors"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     className="flex-1 px-4 py-3 rounded-xl bg-brand-blue text-brand-gray-dark text-sm font-black uppercase tracking-tighter hover:bg-brand-blue-light transition-colors flex items-center justify-center gap-2"
                   >
-                    <Check size={18} />
+                    <Check size={18} aria-hidden="true" />
                     Salvar
-                  </button>
-                </div>
+                  </Button>
+                </footer>
               </form>
             </motion.div>
           </div>
@@ -386,67 +398,72 @@ const SettingsView: React.FC = () => {
       {/* Modal de Alteração de Senha */}
       <AnimatePresence>
         {isChangingPassword && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-password-title"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md glass-panel technical-border rounded-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white uppercase italic font-serif">Alterar Senha</h3>
-                <button onClick={() => setIsChangingPassword(false)} className="text-gray-500 hover:text-white">
-                  <X size={20} />
+              <header className="p-6 border-b border-white/10 flex items-center justify-between">
+                <h3 id="change-password-title" className="text-lg font-bold text-white uppercase italic font-serif">Alterar Senha</h3>
+                <button 
+                  onClick={() => setIsChangingPassword(false)} 
+                  className="text-gray-500 hover:text-white"
+                  aria-label="Fechar modal"
+                >
+                  <X size={20} aria-hidden="true" />
                 </button>
-              </div>
+              </header>
               <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Senha Atual</label>
-                  <input
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="w-full bg-brand-gray-deep border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-brand-blue outline-none transition-colors"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Nova Senha</label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    className="w-full bg-brand-gray-deep border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-brand-blue outline-none transition-colors"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Confirmar Nova Senha</label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    className="w-full bg-brand-gray-deep border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-brand-blue outline-none transition-colors"
-                    required
-                  />
-                </div>
-                <div className="pt-4 flex gap-3">
-                  <button
+                <Input
+                  id="current-password"
+                  label="Senha Atual"
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  required
+                />
+                <Input
+                  id="new-password"
+                  label="Nova Senha"
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  required
+                  minLength={6}
+                />
+                <Input
+                  id="confirm-password"
+                  label="Confirmar Nova Senha"
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  required
+                />
+                <footer className="pt-4 flex gap-3">
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => setIsChangingPassword(false)}
                     className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-sm font-bold text-gray-400 hover:bg-white/5 transition-colors"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
                     className="flex-1 px-4 py-3 rounded-xl bg-brand-blue text-brand-gray-dark text-sm font-black uppercase tracking-tighter hover:bg-brand-blue-light transition-colors flex items-center justify-center gap-2"
                   >
-                    <Check size={18} />
+                    <Check size={18} aria-hidden="true" />
                     Atualizar
-                  </button>
-                </div>
+                  </Button>
+                </footer>
               </form>
             </motion.div>
           </div>
@@ -456,27 +473,36 @@ const SettingsView: React.FC = () => {
       {/* Modal de Gestão de Módulos */}
       <AnimatePresence>
         {isManagingModules && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modules-title"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-2xl glass-panel technical-border rounded-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-white/10 flex items-center justify-between bg-brand-gray-deep">
+              <header className="p-6 border-b border-white/10 flex items-center justify-between bg-brand-gray-deep">
                 <div>
-                  <h3 className="text-lg font-bold text-white uppercase italic font-serif">Módulos & Extensões</h3>
+                  <h3 id="modules-title" className="text-lg font-bold text-white uppercase italic font-serif">Módulos & Extensões</h3>
                   <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Expanda as capacidades do seu console</p>
                 </div>
-                <button onClick={() => setIsManagingModules(false)} className="text-gray-500 hover:text-white">
-                  <X size={20} />
+                <button 
+                  onClick={() => setIsManagingModules(false)} 
+                  className="text-gray-500 hover:text-white"
+                  aria-label="Fechar modal"
+                >
+                  <X size={20} aria-hidden="true" />
                 </button>
-              </div>
-              <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar">
+              </header>
+              <ul className="p-6 space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar" role="list">
                 {modules.map((mod) => (
-                  <div key={mod.slug} className="glass-panel technical-border p-4 rounded-xl flex items-center justify-between group">
+                  <li key={mod.slug} className="glass-panel technical-border p-4 rounded-xl flex items-center justify-between group" role="listitem">
                     <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl bg-brand-gray-deep border border-white/5 text-brand-blue`}>
+                      <div className={`p-3 rounded-xl bg-brand-gray-deep border border-white/5 text-brand-blue`} aria-hidden="true">
                         <Cpu size={20} />
                       </div>
                       <div>
@@ -499,20 +525,21 @@ const SettingsView: React.FC = () => {
                           ? 'bg-brand-red/10 text-brand-red hover:bg-brand-red/20'
                           : 'bg-brand-blue text-brand-gray-dark hover:bg-brand-blue-light'
                       }`}
+                      aria-label={`${mod.status === 'active' || mod.status === 'trial' ? 'Desativar' : 'Ativar'} módulo ${mod.name}`}
                     >
                       {mod.status === 'active' || mod.status === 'trial' ? 'Desativar' : 'Ativar'}
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
-              <div className="p-6 bg-brand-gray-deep border-t border-white/10 flex justify-end">
+              </ul>
+              <footer className="p-6 bg-brand-gray-deep border-t border-white/10 flex justify-end">
                 <button
                   onClick={() => setIsManagingModules(false)}
                   className="px-6 py-2 rounded-xl bg-white/5 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-colors"
                 >
                   Fechar
                 </button>
-              </div>
+              </footer>
             </motion.div>
           </div>
         )}
@@ -899,7 +926,7 @@ const SettingsView: React.FC = () => {
         cancelText="Cancelar"
         type="danger"
       />
-    </div>
+    </section>
   );
 };
 

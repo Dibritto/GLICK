@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Zap, Loader2, Mail, Lock, User as UserIcon } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface AuthViewProps {
   onSuccess?: () => void;
@@ -71,68 +73,58 @@ const AuthView: React.FC<AuthViewProps> = () => {
 
         <div className="glass-panel technical-border rounded-xl p-8 space-y-6">
           <div className="flex p-1 bg-brand-lead/20 rounded-lg">
-            <button
+            <Button
               onClick={() => setIsLogin(true)}
+              variant={isLogin ? "primary" : "ghost"}
               className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                 isLogin ? 'bg-brand-blue text-brand-graphite shadow-lg' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               Login
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setIsLogin(false)}
+              variant={!isLogin ? "primary" : "ghost"}
               className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                 !isLogin ? 'bg-brand-blue text-brand-graphite shadow-lg' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
               Cadastro
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <UserIcon size={12} /> Nome Completo
-                </label>
-                <input 
-                  type="text" 
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-lg py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                  placeholder="Seu nome"
-                />
-              </div>
+              <Input 
+                label="Nome Completo"
+                icon={<UserIcon size={12} />}
+                type="text" 
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu nome"
+              />
             )}
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                <Mail size={12} /> Email
-              </label>
-              <input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                placeholder="seu@email.com"
-              />
-            </div>
+            <Input 
+              label="Email"
+              icon={<Mail size={12} />}
+              type="email" 
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+            />
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                <Lock size={12} /> Senha
-              </label>
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
+            <Input 
+              label="Senha"
+              icon={<Lock size={12} />}
+              type="password" 
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
 
             {error && (
               <motion.p 
@@ -144,14 +136,14 @@ const AuthView: React.FC<AuthViewProps> = () => {
               </motion.p>
             )}
 
-            <button 
+            <Button 
               type="submit"
               disabled={isLoading}
               className="w-full py-4 bg-brand-blue text-brand-graphite rounded-lg text-xs font-black uppercase tracking-[0.2em] hover:bg-brand-blue/80 transition-all shadow-xl shadow-brand-blue/20 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} className="fill-current" />}
               {isLogin ? 'Acessar Console' : 'Criar Conta Técnica'}
-            </button>
+            </Button>
           </form>
         </div>
 

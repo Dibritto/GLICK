@@ -11,6 +11,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 import { Account } from '../types';
 
@@ -98,19 +100,15 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
       <Modal isOpen={isOpen} onClose={onClose} title={editingAccount ? "Editar Conta" : "Nova Conta / Carteira"}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                <Type size={12} /> Nome da Instituição
-              </label>
-              <input 
-                type="text" 
-                required
-                placeholder="Ex: Nubank, Itaú, Carteira..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-              />
-            </div>
+            <Input 
+              label="Nome da Instituição"
+              icon={<Type size={12} />}
+              type="text" 
+              required
+              placeholder="Ex: Nubank, Itaú, Carteira..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -171,8 +169,10 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
                 <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center justify-between">
                   Saldo Atual
                   {editingAccount && (
-                    <button 
+                    <Button 
                       type="button"
+                      variant="ghost"
+                      className="text-brand-blue hover:underline flex items-center gap-1 p-0 h-auto"
                       onClick={async () => {
                         setIsRecalculating(true);
                         try {
@@ -184,10 +184,9 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
                           setIsRecalculating(false);
                         }
                       }}
-                      className="text-brand-blue hover:underline flex items-center gap-1"
                     >
                       {isRecalculating ? <Loader2 size={10} className="animate-spin" /> : 'Recalcular'}
-                    </button>
+                    </Button>
                   )}
                 </label>
                 <div className="relative">
@@ -207,23 +206,25 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
 
           <div className="flex gap-3">
             {editingAccount && (
-              <button 
+              <Button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting || isSubmitting}
+                variant="danger"
                 className="flex-1 py-4 bg-brand-red/20 text-brand-red border border-brand-red/30 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-red/30 transition-all disabled:opacity-50"
               >
                 {isDeleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+              </Button>
             )}
-            <button 
+            <Button 
               type="submit"
               disabled={isSubmitting || isDeleting}
+              variant="primary"
               className="flex-[2] py-4 bg-brand-blue text-brand-graphite rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-[0.2em] hover:bg-brand-blue/80 transition-all shadow-xl disabled:opacity-50"
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
               {isSubmitting ? 'Salvando...' : editingAccount ? 'Salvar Alterações' : 'Criar Conta'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

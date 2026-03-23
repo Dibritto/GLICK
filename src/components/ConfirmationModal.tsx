@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, X } from 'lucide-react';
+import { Button } from './ui/Button';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -74,13 +75,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </div>
 
           <div className="flex gap-3">
-            <button 
+            <Button 
+              variant="ghost"
               onClick={onClose}
               className="flex-1 py-3 bg-brand-lead/20 text-white border border-brand-lead/30 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-lead/30 transition-all"
             >
               {cancelText}
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant={type === 'danger' ? 'danger' : 'primary'}
               onClick={() => {
                 onConfirm();
                 onClose();
@@ -88,7 +91,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
               className={`flex-1 py-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-all shadow-lg ${colors[type]}`}
             >
               {confirmText}
-            </button>
+            </Button>
           </div>
         </motion.div>
       </div>

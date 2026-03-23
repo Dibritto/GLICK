@@ -24,6 +24,10 @@ import { useFinance } from '../context/FinanceContext';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import ConfirmationModal from './ConfirmationModal';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Badge } from './ui/Badge';
+import { Select } from './ui/Select';
 
 interface MovementsViewProps {
   typeFilter?: 'income' | 'expense' | 'all';
@@ -177,10 +181,10 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <section className="p-4 md:p-8 space-y-6" aria-labelledby="movements-view-title">
       {/* Cabeçalho Técnico */}
       <header className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+        <h2 id="movements-view-title" className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
           {title}
         </h2>
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
@@ -189,78 +193,86 @@ const MovementsView: React.FC<MovementsViewProps> = ({
       </header>
 
       {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input 
-            type="text" 
+      <div className="flex flex-col md:flex-row gap-4 items-center" role="toolbar" aria-label="Ferramentas de busca e ações de transação">
+        <div className="flex-1 w-full">
+          <Input 
+            id="movement-search"
             placeholder="Pesquisar por descrição ou categoria..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+            icon={<Search size={16} aria-hidden="true" />}
+            className="w-full"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <button 
+          <Button 
             onClick={handleExportCSV}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
+            variant="outline"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-[10px] uppercase tracking-[0.2em]"
+            aria-label="Exportar transações filtradas para CSV"
           >
-            <Download size={14} />
+            <Download size={14} aria-hidden="true" />
             Exportar
-          </button>
-          <button 
+          </Button>
+          <Button 
             onClick={onAddTransaction}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+            variant="primary"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+            aria-label="Registrar nova transação financeira"
           >
-            <Plus size={14} />
+            <Plus size={14} aria-hidden="true" />
             Nova Transação
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Barra de Ferramentas - Linha 2: Filtros */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="min-w-[150px]">
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="all">Todo o Período</option>
-            {availableMonths.map(month => (
-              <option key={month} value={month}>{formatMonthLabel(month)}</option>
-            ))}
-          </select>
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between" role="group" aria-label="Filtros de transação">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:w-[180px]">
+            <Select
+              id="month-filter"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              aria-label="Filtrar por mês"
+            >
+              <option value="all">Todo o Período</option>
+              {availableMonths.map(month => (
+                <option key={month} value={month}>{formatMonthLabel(month)}</option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="w-full sm:w-[180px]">
+            <Select
+              id="category-filter"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              aria-label="Filtrar por categoria"
+            >
+              <option value="all">Todas Categorias</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
+              ))}
+            </Select>
+          </div>
         </div>
 
-        <div className="min-w-[150px]">
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 px-4 text-[10px] font-bold uppercase tracking-widest text-gray-400 focus:border-brand-blue/50 focus:outline-none transition-all appearance-none cursor-pointer"
-          >
-            <option value="all">Todas Categorias</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.name}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex gap-2 flex-wrap ml-auto">
+        <div className="flex gap-1 p-1 bg-brand-lead/10 rounded-xl border border-brand-lead/20 self-start lg:self-center" role="group" aria-label="Filtrar por tipo de transação">
           {(['all', 'income', 'expense', 'transfer'] as const).map((type) => (
-            <button
+            <Button
               key={type}
+              variant={filterType === type ? 'primary' : 'ghost'}
               onClick={() => setFilterType(type)}
+              aria-pressed={filterType === type}
               className={`
-                min-w-[80px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
-                ${filterType === type 
-                  ? 'bg-brand-blue/10 border-brand-blue text-brand-blue' 
-                  : 'bg-transparent border-brand-lead/30 text-gray-500 hover:border-brand-blue/30'}
+                min-w-[70px] sm:min-w-[80px] py-1.5 px-3 text-[9px] uppercase tracking-widest transition-all rounded-lg
+                ${filterType === type ? 'shadow-lg' : 'text-gray-500 hover:text-gray-300'}
               `}
             >
               {type === 'all' ? 'Todos' : type === 'income' ? 'Entradas' : type === 'expense' ? 'Saídas' : 'Transf.'}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -269,23 +281,24 @@ const MovementsView: React.FC<MovementsViewProps> = ({
       <div className="glass-panel technical-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left border-collapse min-w-[800px]">
+            <caption className="sr-only">Lista detalhada de movimentações financeiras</caption>
             <thead>
               <tr className="bg-brand-lead/10 border-b border-brand-lead/20">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Status</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Data</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Descrição</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Categoria</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Conta</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif text-right">Valor</th>
-                <th className="px-6 py-4"></th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Status</th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Data</th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Descrição</th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Categoria</th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif">Conta</th>
+                <th scope="col" className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 italic font-serif text-right">Valor</th>
+                <th scope="col" className="px-6 py-4"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-lead/10">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="py-20 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <Loader2 size={32} className="text-brand-blue animate-spin" />
+                    <div className="flex flex-col items-center gap-4" aria-live="polite">
+                      <Loader2 size={32} className="text-brand-blue animate-spin" aria-hidden="true" />
                       <p className="text-xs text-gray-500 uppercase tracking-widest">Sincronizando Telemetria...</p>
                     </div>
                   </td>
@@ -303,17 +316,21 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                         onEditTransaction?.(m);
                       }}
                       className={`hover:bg-white/[0.02] transition-colors group cursor-pointer ${String(m.id).startsWith('projected-') ? 'opacity-50 grayscale-[0.5]' : ''}`}
+                      aria-label={`${m.description}: ${formatCurrency(m.amount)} em ${formatDate(m.date)}, Status: ${m.status}`}
                     >
                       <td className="px-6 py-4">
-                        <div className={`w-2 h-2 rounded-full ${
-                          String(m.id).startsWith('projected-') ? 'bg-brand-blue border border-brand-blue/50 animate-pulse' :
-                          m.status === 'confirmed' || m.status === 'reconciled' ? 'bg-brand-green shadow-[0_0_8px_rgba(0,255,159,0.5)]' : 
-                          'bg-brand-orange animate-pulse'
-                        }`} />
+                        <div 
+                          className={`w-2 h-2 rounded-full ${
+                            String(m.id).startsWith('projected-') ? 'bg-brand-blue border border-brand-blue/50 animate-pulse' :
+                            m.status === 'confirmed' || m.status === 'reconciled' ? 'bg-brand-green shadow-[0_0_8px_rgba(0,255,159,0.5)]' : 
+                            'bg-brand-orange animate-pulse'
+                          }`} 
+                          aria-label={`Status: ${m.status}`}
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-gray-400 font-mono text-[11px]">
-                          <Calendar size={12} className="opacity-50" />
+                          <Calendar size={12} className="opacity-50" aria-hidden="true" />
                           {formatDate(m.date)}
                         </div>
                       </td>
@@ -321,32 +338,32 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold text-gray-200 group-hover:text-brand-blue transition-colors">{m.description}</p>
                           {m.recurrence && m.recurrence !== 'none' && (
-                            <Clock size={12} className="text-brand-blue opacity-70" />
+                            <Clock size={12} className="text-brand-blue opacity-70" aria-label="Recorrente" />
                           )}
                           {String(m.id).startsWith('projected-') && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Projetado</span>
+                            <Badge variant="info">Projetado</Badge>
                           )}
                           {m.goal_id && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white font-bold uppercase tracking-tighter flex items-center gap-1">
-                              <Target size={10} /> Meta
-                            </span>
+                            <Badge variant="neutral" className="flex items-center gap-1">
+                              <Target size={10} aria-hidden="true" /> Meta
+                            </Badge>
                           )}
                           {m.status === 'pending' && !String(m.id).startsWith('projected-') && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-orange/10 text-brand-orange font-bold uppercase tracking-tighter">Pendente</span>
+                            <Badge variant="warning">Pendente</Badge>
                           )}
                           {m.status === 'confirmed' && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-blue/10 text-brand-blue font-bold uppercase tracking-tighter">Confirmado</span>
+                            <Badge variant="info">Confirmado</Badge>
                           )}
                           {m.status === 'reconciled' && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-green/10 text-brand-green font-bold uppercase tracking-tighter flex items-center gap-1">
-                              <CheckCircle size={10} /> Conciliado
-                            </span>
+                            <Badge variant="success" className="flex items-center gap-1">
+                              <CheckCircle size={10} aria-hidden="true" /> Conciliado
+                            </Badge>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <Tag size={12} className="text-gray-600" />
+                          <Tag size={12} className="text-gray-600" aria-hidden="true" />
                           <span className="px-2 py-0.5 rounded-full bg-brand-lead/20 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                             {m.category}
                           </span>
@@ -354,13 +371,13 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-gray-500 text-xs">
-                            <Wallet size={12} className="opacity-50" />
+                          <div className="flex items-center gap-2 text-gray-500 text-[10px] uppercase tracking-wider">
+                            <Wallet size={12} className="opacity-50" aria-hidden="true" />
                             {m.account_name}
                           </div>
                           {m.card_name && (
-                            <div className="flex items-center gap-2 text-brand-lead text-[10px] font-bold uppercase tracking-wider">
-                              <CreditCard size={10} className="opacity-70" />
+                            <div className="flex items-center gap-2 text-brand-lead text-[9px] font-bold uppercase tracking-wider">
+                              <CreditCard size={10} className="opacity-70" aria-hidden="true" />
                               {m.card_name}
                             </div>
                           )}
@@ -369,11 +386,13 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                       <td className={`px-6 py-4 text-sm font-mono font-bold text-right ${m.type === 'income' ? 'text-brand-green' : m.type === 'expense' ? 'text-brand-red' : 'text-brand-blue'}`}>
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center justify-end gap-2">
-                            {m.type === 'income' ? <ArrowUpCircle size={14} /> : m.type === 'expense' ? <ArrowDownCircle size={14} /> : <ArrowLeftRight size={14} />}
+                            {m.type === 'income' ? <ArrowUpCircle size={14} aria-hidden="true" /> : m.type === 'expense' ? <ArrowDownCircle size={14} aria-hidden="true" /> : <ArrowLeftRight size={14} aria-hidden="true" />}
                             {m.type === 'income' ? '+' : m.type === 'expense' ? '-' : '⇄'} {formatCurrency(m.amount)}
                           </div>
                           {m.status === 'pending' && (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (String(m.id).startsWith('projected-')) {
@@ -385,21 +404,25 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                                   updateTransaction(m.id, { ...m, status: 'confirmed' });
                                 }
                               }}
-                              className="text-[9px] text-brand-blue hover:text-white uppercase font-bold tracking-widest border border-brand-blue/30 px-2 py-0.5 rounded hover:bg-brand-blue/20 transition-all"
+                              className="text-[9px] uppercase tracking-widest px-2 py-0.5"
+                              aria-label="Confirmar transação pendente"
                             >
                               Confirmar Agora
-                            </button>
+                            </Button>
                           )}
                           {m.status === 'confirmed' && (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 reconcileTransaction(m.id);
                               }}
-                              className="text-[9px] text-brand-green hover:text-white uppercase font-bold tracking-widest border border-brand-green/30 px-2 py-0.5 rounded hover:bg-brand-green/20 transition-all"
+                              className="text-[9px] uppercase tracking-widest px-2 py-0.5"
+                              aria-label="Conciliar transação confirmada"
                             >
                               Conciliar
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -412,8 +435,9 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                             }}
                             className="p-2 text-gray-600 hover:text-brand-red transition-colors"
                             title="Excluir transação"
+                            aria-label={`Excluir transação ${m.description}`}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={16} aria-hidden="true" />
                           </button>
                         </div>
                       </td>
@@ -426,44 +450,46 @@ const MovementsView: React.FC<MovementsViewProps> = ({
         </div>
         
         {!isLoading && filteredMovements.length === 0 && (
-          <div className="p-20 text-center space-y-6">
+          <div className="p-20 text-center space-y-6" role="status">
             <div className="relative inline-block">
-              <div className="absolute inset-0 bg-brand-blue/10 blur-2xl rounded-full" />
+              <div className="absolute inset-0 bg-brand-blue/10 blur-2xl rounded-full" aria-hidden="true" />
               <div className="relative p-6 rounded-full bg-brand-gray-deep/50 text-gray-600 border border-brand-lead/20">
-                <Activity size={48} className="animate-pulse" />
+                <Activity size={48} className="animate-pulse" aria-hidden="true" />
               </div>
             </div>
             <div className="space-y-2 max-w-xs mx-auto">
               <p className="text-white font-bold uppercase tracking-widest text-sm italic font-serif">Silêncio na Telemetria</p>
-              <p className="text-[10px] text-gray-500 uppercase leading-relaxed">
+              <p className="text-[10px] text-gray-500 uppercase leading-relaxed tracking-wider">
                 Nenhum fluxo de capital detectado para os parâmetros atuais. Ajuste os filtros ou registre uma nova movimentação para iniciar o monitoramento.
               </p>
             </div>
-            <button 
+            <Button 
               onClick={onAddTransaction}
-              className="px-6 py-2 bg-brand-blue/10 text-brand-blue border border-brand-blue/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-blue/20 transition-all"
+              variant="outline"
+              className="px-6 py-2 text-[10px] uppercase tracking-widest"
+              aria-label="Registrar primeira movimentação financeira"
             >
               Registrar Primeira Movimentação
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Rodapé de Telemetria */}
-      <footer className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 glass-panel technical-border rounded-2xl">
+      <footer className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 glass-panel technical-border rounded-2xl interactive-card" aria-label="Resumo de telemetria financeira do período">
         <div className="flex gap-8">
-          <div>
+          <div role="status">
             <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Total Entradas</p>
             <p className="text-lg font-mono font-bold text-brand-green">{formatCurrency(totals.income)}</p>
           </div>
-          <div className="w-px h-10 bg-brand-lead/20" />
-          <div>
+          <div className="w-px h-10 bg-brand-lead/20" aria-hidden="true" />
+          <div role="status">
             <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Total Saídas</p>
             <p className="text-lg font-mono font-bold text-brand-red">{formatCurrency(totals.expense)}</p>
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-right" role="status">
           <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Resultado Líquido</p>
           <p className={`text-xl font-mono font-bold ${totals.income - totals.expense >= 0 ? 'text-brand-blue' : 'text-brand-red'}`}>
             {formatCurrency(totals.income - totals.expense)}
@@ -483,7 +509,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
         confirmText="Sim, Remover"
         cancelText="Manter Registro"
       />
-    </div>
+    </section>
   );
 };
 

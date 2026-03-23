@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { formatCurrency } from '../utils/formatters';
 import { ArrowUpCircle, ArrowDownCircle, Wallet, Calendar, FileText, Loader2 } from 'lucide-react';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import { Goal } from '../types';
 
 interface GoalFundingModalProps {
@@ -97,26 +99,17 @@ const GoalFundingModal: React.FC<GoalFundingModalProps> = ({ isOpen, onClose, go
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">
-              Valor do {isAdd ? 'Aporte' : 'Resgate'}
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <span className="text-gray-500 font-mono">R$</span>
-              </div>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white font-mono focus:outline-none focus:border-brand-blue transition-colors"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
+          <Input 
+            label={`Valor do ${isAdd ? 'Aporte' : 'Resgate'}`}
+            type="number"
+            step="0.01"
+            min="0.01"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            icon={<span className="text-gray-500 font-mono">R$</span>}
+            placeholder="0.00"
+          />
 
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">
@@ -143,57 +136,41 @@ const GoalFundingModal: React.FC<GoalFundingModalProps> = ({ isOpen, onClose, go
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">Data</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Calendar size={16} className="text-gray-500" />
-                </div>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-brand-blue transition-colors"
-                />
-              </div>
-            </div>
+            <Input 
+              label="Data"
+              icon={<Calendar size={16} className="text-gray-500" />}
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
 
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-2">Descrição</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FileText size={16} className="text-gray-500" />
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-brand-blue transition-colors"
-                  placeholder="Descrição..."
-                />
-              </div>
-            </div>
+            <Input 
+              label="Descrição"
+              icon={<FileText size={16} className="text-gray-500" />}
+              type="text"
+              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descrição..."
+            />
           </div>
         </div>
 
         <div className="pt-6 flex gap-4">
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={onClose}
             className="flex-1 py-3 rounded-xl font-bold text-white bg-white/5 hover:bg-white/10 transition-colors"
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             disabled={isSubmitting}
-            className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 ${
-              isAdd 
-                ? 'bg-brand-blue hover:bg-brand-blue/90' 
-                : 'bg-brand-red hover:bg-brand-red/90'
-            } disabled:opacity-50`}
+            variant={isAdd ? 'primary' : 'danger'}
+            className={`flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50`}
           >
             {isSubmitting ? (
               <Loader2 size={20} className="animate-spin" />
@@ -206,7 +183,7 @@ const GoalFundingModal: React.FC<GoalFundingModalProps> = ({ isOpen, onClose, go
                 <ArrowDownCircle size={20} /> Confirmar Resgate
               </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

@@ -11,6 +11,14 @@
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Design Tokens */
+  --glass-opacity: 0.8;
+  --glass-blur: 8px;
+  --standard-radius: 0.75rem; /* 12px */
+  --standard-border-opacity: 0.1;
+  --hover-scale: 1.02;
+  --active-scale: 0.98;
 }
 
 @layer base {
@@ -35,11 +43,26 @@
 }
 
 .glass-panel {
-  @apply bg-brand-gray-deep/80 border border-white/5 backdrop-blur-sm;
+  background-color: color-mix(in srgb, var(--color-brand-gray-deep) calc(var(--glass-opacity) * 100%), transparent);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid rgba(255, 255, 255, var(--standard-border-opacity));
 }
 
 .technical-border {
   @apply border border-brand-lead/50;
+}
+
+.interactive-card {
+  @apply transition-all duration-200 cursor-pointer;
+}
+
+.interactive-card:hover {
+  transform: scale(var(--hover-scale));
+  @apply border-brand-blue/30 shadow-[0_0_20px_rgba(44,199,255,0.1)];
+}
+
+.interactive-card:active {
+  transform: scale(var(--active-scale));
 }
 
 .glow-blue {

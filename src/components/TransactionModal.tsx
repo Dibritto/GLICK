@@ -18,6 +18,8 @@ import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { formatCurrency } from '../utils/formatters';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -222,9 +224,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           {/* Seletor de Tipo (Desabilitado na edição ou quando travado para manter contexto) */}
           {!editingTransaction && !lockType && (
             <div className="flex p-1 bg-brand-lead/20 rounded-lg">
-              <button
+              <Button
                 type="button"
                 onClick={() => setType('expense')}
+                variant={type === 'expense' ? "primary" : "ghost"}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
                   type === 'expense' 
                     ? 'bg-brand-red text-white shadow-lg' 
@@ -233,10 +236,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               >
                 <ArrowDownCircle size={14} />
                 Despesa
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setType('income')}
+                variant={type === 'income' ? "primary" : "ghost"}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
                   type === 'income' 
                     ? 'bg-brand-green text-brand-graphite shadow-lg' 
@@ -245,13 +249,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               >
                 <ArrowUpCircle size={14} />
                 Receita
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setType('transfer');
                   setCategory('Transferência');
                 }}
+                variant={type === 'transfer' ? "primary" : "ghost"}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
                   type === 'transfer' 
                     ? 'bg-brand-blue text-brand-graphite shadow-lg' 
@@ -260,7 +265,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
               >
                 <ArrowRightLeft size={14} />
                 Transf.
-              </button>
+              </Button>
             </div>
           )}
 
@@ -290,9 +295,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   {status === 'confirmed' ? 'Confirmada (Afeta o saldo atual)' : 'Pendente (Projeção futura)'}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => setStatus(status === 'confirmed' ? 'pending' : 'confirmed')}
+                variant="outline"
                 className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
                   status === 'confirmed' 
                     ? 'bg-brand-green/20 text-brand-green border border-brand-green/30' 
@@ -300,7 +306,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 }`}
               >
                 {status === 'confirmed' ? 'Confirmada' : 'Pendente'}
-              </button>
+              </Button>
             </div>
           )}
           {!cardId && status === 'reconciled' && (
@@ -316,19 +322,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 
           {/* Campos de Formulário */}
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                <FileText size={12} /> Descrição
-              </label>
-              <input 
-                type="text" 
-                required
-                placeholder={type === 'transfer' ? 'Ex: Transferência para reserva...' : 'Ex: Aluguel, Salário, Mercado...'}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-              />
-            </div>
+            <Input 
+              label="Descrição"
+              icon={<FileText size={12} />}
+              type="text" 
+              required
+              placeholder={type === 'transfer' ? 'Ex: Transferência para reserva...' : 'Ex: Aluguel, Salário, Mercado...'}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               {type !== 'transfer' ? (
@@ -441,18 +443,14 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <Calendar size={12} /> Data da Operação
-                </label>
-                <input 
-                  type="date" 
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
+              <Input 
+                label="Data da Operação"
+                icon={<Calendar size={12} />}
+                type="date" 
+                required
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
@@ -475,18 +473,20 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
           {/* Botões de Ação */}
           <div className="flex gap-3">
             {editingTransaction && !String(editingTransaction.id).startsWith('projected-') && (
-              <button 
+              <Button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
+                variant="danger"
                 className="flex-1 py-4 rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-widest bg-brand-red/10 text-brand-red border border-brand-red/30 hover:bg-brand-red/20 transition-all"
               >
                 {isDeleting ? <Loader2 size={18} className="animate-spin" /> : 'Excluir'}
-              </button>
+              </Button>
             )}
-            <button 
+            <Button 
               type="submit"
               disabled={isSubmitting}
+              variant={type === 'income' ? 'primary' : type === 'transfer' ? 'primary' : 'danger'}
               className={`flex-[2] py-4 rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-[0.2em] transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
                 type === 'income' 
                   ? 'bg-brand-green text-brand-graphite hover:bg-brand-green/80 shadow-brand-green/20' 
@@ -497,7 +497,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
               {isSubmitting ? 'Processando...' : editingTransaction ? 'Salvar Alterações' : 'Confirmar Operação'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

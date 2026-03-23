@@ -17,6 +17,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Badge } from './ui/Badge';
 
 interface AccountsViewProps {
   onAddAccount?: () => void;
@@ -50,10 +53,10 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <section className="p-4 md:p-8 space-y-6" aria-labelledby="accounts-view-title">
       {/* Cabeçalho Técnico */}
       <header className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
+        <h2 id="accounts-view-title" className="text-2xl font-bold tracking-tighter text-white uppercase italic font-serif">
           Gestão de Contas
         </h2>
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold">
@@ -62,43 +65,53 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
       </header>
 
       {/* Barra de Ferramentas - Linha 1: Busca e Ações */}
-      <div className="flex flex-col md:flex-row gap-4 items-center">
-        <div className="flex-1 relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-          <input 
+      <div className="flex flex-col md:flex-row gap-4 items-center" role="toolbar" aria-label="Ferramentas de busca e ações de conta">
+        <div className="flex-1 w-full">
+          <Input 
+            id="account-search"
             type="text" 
             placeholder="Pesquisar por nome do banco ou conta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-brand-gray-deep/50 border border-brand-lead/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-600 focus:border-brand-blue/50 focus:outline-none transition-all"
+            aria-label="Pesquisar por nome do banco ou conta"
+            className="pl-10"
           />
+          <Search className="absolute left-3 top-[calc(50%+0.75rem)] md:top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={16} aria-hidden="true" />
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
-          <button 
+          <Button 
             onClick={onAddTransfer}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue/5 text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-brand-blue/10 transition-all text-[10px] font-bold uppercase tracking-[0.2em]"
+            variant="outline"
+            size="md"
+            className="flex-1 md:flex-none gap-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+            aria-label="Realizar nova transferência entre contas"
           >
-            <ArrowRightLeft size={14} />
+            <ArrowRightLeft size={14} aria-hidden="true" />
             Transferir
-          </button>
-          <button 
+          </Button>
+          <Button 
             onClick={onAddAccount}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-blue text-brand-graphite rounded-xl hover:bg-brand-blue/80 transition-all text-[10px] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(44,199,255,0.4)]"
+            variant="primary"
+            size="md"
+            className="flex-1 md:flex-none gap-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+            aria-label="Adicionar nova conta bancária ou instituição"
           >
-            <Plus size={14} />
+            <Plus size={14} aria-hidden="true" />
             Nova Conta
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Barra de Ferramentas - Linha 2: Filtros */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex gap-2 flex-wrap">
+      <nav className="flex flex-wrap gap-2 items-center" aria-label="Filtrar contas por tipo">
+        <div className="flex gap-2 flex-wrap" role="group">
           {(['all', 'checking', 'savings'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
+              aria-pressed={filterType === type}
+              aria-label={`Mostrar ${type === 'all' ? 'todas as contas' : type === 'checking' ? 'contas correntes' : 'contas poupança'}`}
               className={`
                 min-w-[100px] py-2.5 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all
                 ${filterType === type 
@@ -110,37 +123,46 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
             </button>
           ))}
         </div>
-      </div>
+      </nav>
 
       {/* Grid de Contas */}
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
         {isLoading ? (
-          <div className="col-span-full py-20 flex flex-col items-center gap-4">
-            <Loader2 size={32} className="text-brand-blue animate-spin" />
+          <div className="col-span-full py-20 flex flex-col items-center gap-4" aria-live="polite">
+            <Loader2 size={32} className="text-brand-blue animate-spin" aria-hidden="true" />
             <p className="text-xs text-gray-500 uppercase tracking-widest">Sincronizando Contas...</p>
           </div>
         ) : (
-          <>
+          <ul className="contents" role="list">
             {filteredAccounts.map((acc, i) => (
-              <motion.div 
+              <motion.li 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={acc.id}
                 onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
-                className={`glass-panel technical-border p-6 rounded-lg group transition-all relative overflow-hidden cursor-pointer card-container ${
-                  selectedAccountId === acc.id ? 'border-brand-blue ring-1 ring-brand-blue/30' : 'hover:border-brand-blue/30'
+                className={`glass-panel technical-border p-6 rounded-lg interactive-card group transition-all relative overflow-hidden card-container ${
+                  selectedAccountId === acc.id ? 'border-brand-blue ring-1 ring-brand-blue/30' : ''
                 }`}
+                aria-label={`Conta ${acc.name}, Saldo: ${formatCurrency(acc.balance)}`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id);
+                  }
+                }}
               >
                 {/* Efeito de fundo com a cor do banco */}
                 <div 
                   className="absolute top-0 right-0 w-32 h-32 opacity-[0.03] -mr-8 -mt-8 rounded-full"
                   style={{ backgroundColor: acc.color }}
+                  aria-hidden="true"
                 />
 
                 <div className="flex justify-between items-start mb-6 relative z-10">
                   <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                    <Building2 size={24} style={{ color: acc.color }} />
+                    <Building2 size={24} style={{ color: acc.color }} aria-hidden="true" />
                   </div>
                   <button 
                     onClick={(e) => {
@@ -148,8 +170,9 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                       onEditAccount?.(acc);
                     }}
                     className="p-2 text-gray-600 hover:text-white transition-colors"
+                    aria-label={`Editar conta ${acc.name}`}
                   >
-                    <MoreHorizontal size={18} />
+                    <MoreHorizontal size={18} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -162,14 +185,14 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saldo Real</p>
                     <div className="fluid-value font-mono font-bold text-white">
-                      <span className="currency-symbol">R$</span>
+                      <span className="currency-symbol" aria-hidden="true">R$</span>
                       {formatCurrency(acc.balance, false)}
                     </div>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-brand-blue font-bold mb-1">Saldo Projetado</p>
                     <div className="fluid-value font-mono font-bold text-brand-blue">
-                      <span className="currency-symbol">R$</span>
+                      <span className="currency-symbol" aria-hidden="true">R$</span>
                       {formatCurrency(acc.projected_balance, false)}
                     </div>
                   </div>
@@ -177,42 +200,45 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
 
                 <div className="mt-6 pt-6 border-t border-brand-lead/10 flex items-center justify-between relative z-10">
                   <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-gray-400">
-                    <Zap size={12} className="text-brand-green" />
+                    <Zap size={12} className="text-brand-green" aria-hidden="true" />
                     <span>Sincronização Ativa</span>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" aria-label="Status de conexão: Ativo">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse" />
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green/30" />
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-green/30" />
                   </div>
                 </div>
-              </motion.div>
+              </motion.li>
             ))}
 
             {/* Card de Adicionar */}
-            <button 
-              onClick={onAddAccount}
-              className="border-2 border-dashed border-brand-lead/20 rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group min-h-[240px]"
-            >
-              <div className="p-4 rounded-full bg-brand-lead/10 text-gray-500 group-hover:text-brand-blue group-hover:bg-brand-blue/10 transition-all">
-                <Plus size={32} />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-gray-400 group-hover:text-brand-blue transition-colors">Nova Instituição</p>
-                <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1">Open Finance Ativo</p>
-              </div>
-            </button>
-          </>
+            <li className="contents" role="none">
+              <button 
+                onClick={onAddAccount}
+                className="border-2 border-dashed border-brand-lead/20 rounded-lg p-6 flex flex-col items-center justify-center gap-4 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group min-h-[240px]"
+                aria-label="Adicionar nova instituição financeira"
+              >
+                <div className="p-4 rounded-full bg-brand-lead/10 text-gray-500 group-hover:text-brand-blue group-hover:bg-brand-blue/10 transition-all">
+                  <Plus size={32} aria-hidden="true" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-gray-400 group-hover:text-brand-blue transition-colors">Nova Instituição</p>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-widest mt-1">Open Finance Ativo</p>
+                </div>
+              </button>
+            </li>
+          </ul>
         )}
       </div>
 
       {/* Resumo de Liquidez */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8" aria-labelledby="liquidity-summary-title">
         <div className="lg:col-span-2 glass-panel technical-border p-8 rounded-lg space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <History className="text-brand-blue" size={20} />
-              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">
+              <History className="text-brand-blue" size={20} aria-hidden="true" />
+              <h3 id="liquidity-summary-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">
                 {selectedAccount ? `Histórico: ${selectedAccount.name}` : 'Últimos Lançamentos (Geral)'}
               </h3>
             </div>
@@ -220,6 +246,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
               <button 
                 onClick={() => setSelectedAccountId(null)}
                 className="text-[10px] uppercase tracking-widest text-brand-blue font-bold hover:underline"
+                aria-label="Limpar filtro de conta e ver todos os lançamentos"
               >
                 Ver Tudo
               </button>
@@ -228,13 +255,14 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
+              <caption className="sr-only">Lista de transações recentes filtradas por conta ou geral</caption>
               <thead>
                 <tr className="border-b border-brand-lead/10">
-                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Data</th>
-                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Descrição</th>
-                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Conta</th>
-                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-right">Valor</th>
-                  <th className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-center w-10">Status</th>
+                  <th scope="col" className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Data</th>
+                  <th scope="col" className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Descrição</th>
+                  <th scope="col" className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Conta</th>
+                  <th scope="col" className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-right">Valor</th>
+                  <th scope="col" className="py-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-center w-10">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-lead/5">
@@ -262,6 +290,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                         key={t.id} 
                         className="group hover:bg-white/5 transition-colors cursor-pointer"
                         onClick={() => onEditTransaction?.(t)}
+                        aria-label={`${t.description}: ${formatCurrency(t.amount)} em ${formatDate(t.date)}`}
                       >
                         <td className="py-4 text-xs font-mono text-gray-400">{formatDate(t.date)}</td>
                         <td className="py-4">
@@ -271,9 +300,9 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                               isExpense ? 'bg-brand-red/10 text-brand-red' : 
                               'bg-brand-blue/10 text-brand-blue'
                             }`}>
-                              {isIncome ? <ArrowUpCircle size={14} /> : 
-                               isExpense ? <ArrowDownCircle size={14} /> : 
-                               <ArrowRightLeft size={14} />}
+                              {isIncome ? <ArrowUpCircle size={14} aria-hidden="true" /> : 
+                               isExpense ? <ArrowDownCircle size={14} aria-hidden="true" /> : 
+                               <ArrowRightLeft size={14} aria-hidden="true" />}
                             </div>
                             <span className="text-xs font-bold text-white tracking-tight">{t.description}</span>
                           </div>
@@ -290,9 +319,9 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                         </td>
                         <td className="py-4 text-center">
                           {t.status === 'confirmed' || t.status === 'reconciled' ? (
-                            <CheckCircle2 size={14} className="text-brand-green mx-auto" />
+                            <CheckCircle2 size={14} className="text-brand-green mx-auto" aria-label="Confirmado" />
                           ) : (
-                            <Clock size={14} className="text-brand-orange mx-auto opacity-50" />
+                            <Clock size={14} className="text-brand-orange mx-auto opacity-50" aria-label="Pendente" />
                           )}
                         </td>
                       </tr>
@@ -304,10 +333,10 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-8 rounded-lg space-y-8">
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-8" aria-labelledby="liquidity-stats-title">
           <div className="flex items-center gap-3">
-            <Wallet className="text-brand-blue" size={20} />
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Liquidez</h3>
+            <Wallet className="text-brand-blue" size={20} aria-hidden="true" />
+            <h3 id="liquidity-stats-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Liquidez</h3>
           </div>
 
           <div className="space-y-8">
@@ -316,7 +345,14 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                 <p className="text-xs text-gray-500 uppercase tracking-widest">Patrimônio Líquido</p>
                 <p className="text-sm font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
               </div>
-              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
+              <div 
+                className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuenow={100}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Patrimônio Líquido Total"
+              >
                 <div className="h-full bg-brand-blue w-full" />
               </div>
             </div>
@@ -326,7 +362,14 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                 <p className="text-xs text-brand-blue uppercase tracking-widest font-bold">Capital Livre</p>
                 <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
               </div>
-              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
+              <div 
+                className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuenow={netWorth > 0 ? Math.round((freeCapital / netWorth) * 100) : 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Percentual de Capital Livre sobre Patrimônio Líquido"
+              >
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${netWorth > 0 ? (freeCapital / netWorth) * 100 : 0}%` }}
@@ -337,7 +380,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
           </div>
         </div>
       </section>
-    </div>
+    </section>
   );
 };
 

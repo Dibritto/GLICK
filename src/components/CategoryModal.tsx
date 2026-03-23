@@ -12,6 +12,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 import { Category } from '../types';
 
@@ -103,19 +105,15 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
       <Modal isOpen={isOpen} onClose={onClose} title={editingCategory ? "Editar Categoria" : "Nova Categoria de Fluxo"}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                <Type size={12} /> Nome da Categoria
-              </label>
-              <input 
-                type="text" 
-                required
-                placeholder="Ex: Alimentação, Lazer, Salário..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-              />
-            </div>
+            <Input 
+              label="Nome da Categoria"
+              icon={<Type size={12} />}
+              type="text" 
+              required
+              placeholder="Ex: Alimentação, Lazer, Salário..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -156,21 +154,16 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
 
             {type === 'expense' && (
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <TrendingDown size={12} /> Limite de Gastos (Orçamento)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-bold">R$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    placeholder="0,00"
-                    value={budget}
-                    onChange={(e) => setBudget(Number(e.target.value))}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                  />
-                </div>
+                <Input 
+                  label="Limite de Gastos (Orçamento)"
+                  icon={<TrendingDown size={12} />}
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value))}
+                />
                 <p className="text-[9px] text-gray-600 italic">Defina quanto você planeja gastar nesta categoria por mês.</p>
               </div>
             )}
@@ -178,23 +171,25 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
 
           <div className="flex gap-3">
             {editingCategory && (
-              <button 
+              <Button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting || isSubmitting}
+                variant="danger"
                 className="flex-1 py-4 bg-brand-red/20 text-brand-red border border-brand-red/30 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-red/30 transition-all disabled:opacity-50"
               >
                 {isDeleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+              </Button>
             )}
-            <button 
+            <Button 
               type="submit"
               disabled={isSubmitting || isDeleting}
+              variant="primary"
               className="flex-[2] py-4 bg-brand-blue text-brand-graphite rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-[0.2em] hover:bg-brand-blue/80 transition-all shadow-xl disabled:opacity-50"
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
               {isSubmitting ? 'Salvando...' : editingCategory ? 'Salvar Alterações' : 'Criar Categoria'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

@@ -11,6 +11,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 import { Goal } from '../types';
 
@@ -93,31 +95,24 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
       <Modal isOpen={isOpen} onClose={onClose} title={editingGoal ? "Editar Objetivo" : "Novo Objetivo Estratégico"}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Nome do Objetivo</label>
-              <input 
-                type="text" 
-                required
-                placeholder="Ex: Reserva de Emergência, Viagem, Carro..."
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-              />
-            </div>
+            <Input 
+              label="Nome do Objetivo"
+              type="text" 
+              required
+              placeholder="Ex: Reserva de Emergência, Viagem, Carro..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <Calendar size={12} /> Prazo Estimado
-                </label>
-                <input 
-                  type="date" 
-                  required
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
+              <Input 
+                label="Prazo Estimado"
+                icon={<Calendar size={12} />}
+                type="date" 
+                required
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
@@ -140,44 +135,41 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Alvo</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-gray-600">R$</span>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
-                  placeholder="0,00"
-                  value={targetAmount}
-                  onChange={(e) => setTargetAmount(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-10 pr-4 text-sm font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
-            </div>
+            <Input 
+              label="Valor Alvo"
+              type="number" 
+              step="0.01"
+              required
+              placeholder="0,00"
+              value={targetAmount}
+              onChange={(e) => setTargetAmount(e.target.value)}
+              icon={<span className="text-xs font-mono font-bold text-gray-600">R$</span>}
+            />
           </div>
 
           <div className="flex gap-3">
             {editingGoal && (
-              <button 
+              <Button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting || isSubmitting}
+                variant="danger"
                 className="flex-1 py-4 bg-brand-red/20 text-brand-red border border-brand-red/30 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-red/30 transition-all disabled:opacity-50"
               >
                 {isDeleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+              </Button>
             )}
-            <button 
+            <Button 
               type="submit"
               disabled={isSubmitting || isDeleting}
+              variant="primary"
               className={`flex-[2] py-4 rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-[0.2em] transition-all shadow-xl disabled:opacity-50 ${
                 editingGoal ? 'bg-brand-blue text-brand-graphite hover:bg-brand-blue/80' : 'bg-brand-green text-brand-graphite hover:bg-brand-green/80'
               }`}
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
               {isSubmitting ? 'Processando...' : editingGoal ? 'Salvar Alterações' : 'Confirmar Objetivo'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

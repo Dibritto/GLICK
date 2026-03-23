@@ -12,6 +12,8 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 import { Card } from '../types';
 
@@ -126,19 +128,15 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <CreditCard size={12} /> Nome no App
-                </label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Ex: Black, Platinum..."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
+              <Input 
+                label="Nome no App"
+                icon={<CreditCard size={12} />}
+                type="text" 
+                required
+                placeholder="Ex: Black, Platinum..."
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
@@ -174,53 +172,40 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <Calendar size={12} /> Fechamento (Dia)
-                </label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="31"
-                  required
-                  value={closingDay}
-                  onChange={(e) => setClosingDay(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
+              <Input 
+                label="Fechamento (Dia)"
+                icon={<Calendar size={12} />}
+                type="number" 
+                min="1"
+                max="31"
+                required
+                value={closingDay}
+                onChange={(e) => setClosingDay(e.target.value)}
+              />
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
-                  <Calendar size={12} /> Vencimento (Dia)
-                </label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="31"
-                  required
-                  value={dueDay}
-                  onChange={(e) => setDueDay(e.target.value)}
-                  className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                />
-              </div>
+              <Input 
+                label="Vencimento (Dia)"
+                icon={<Calendar size={12} />}
+                type="number" 
+                min="1"
+                max="31"
+                required
+                value={dueDay}
+                onChange={(e) => setDueDay(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Limite Total</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-gray-600">R$</span>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    placeholder="0,00"
-                    value={limit}
-                    onChange={(e) => setLimit(e.target.value)}
-                    className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 pl-10 pr-4 text-sm font-mono font-bold text-white focus:border-brand-blue/50 focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
+              <Input 
+                label="Limite Total"
+                type="number" 
+                step="0.01"
+                required
+                placeholder="0,00"
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+                icon={<span className="text-xs font-mono font-bold text-gray-600">R$</span>}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
@@ -246,23 +231,25 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
 
           <div className="flex gap-3">
             {editingCard && (
-              <button 
+              <Button 
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting || isSubmitting}
+                variant="danger"
                 className="flex-1 py-4 bg-brand-red/20 text-brand-red border border-brand-red/30 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-red/30 transition-all disabled:opacity-50"
               >
                 {isDeleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+              </Button>
             )}
-            <button 
+            <Button 
               type="submit"
               disabled={isSubmitting || isDeleting}
+              variant="primary"
               className="flex-[2] py-4 bg-brand-blue text-brand-graphite rounded-lg flex items-center justify-center gap-3 text-sm font-bold uppercase tracking-[0.2em] hover:bg-brand-blue/80 transition-all shadow-xl disabled:opacity-50"
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
               {isSubmitting ? 'Salvando...' : editingCard ? 'Salvar Alterações' : 'Adicionar Cartão'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
