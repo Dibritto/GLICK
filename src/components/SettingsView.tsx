@@ -260,7 +260,7 @@ const SettingsView: React.FC = () => {
         {[
           { label: 'Status do Core', value: systemHealth?.status === 'ok' ? 'Operacional' : 'Instável', color: systemHealth?.status === 'ok' ? 'text-emerald-500' : 'text-brand-red' },
           { label: 'Modo Banco', value: systemHealth?.dbMode || 'SQLite (Preview)', color: 'text-brand-blue' },
-          { label: 'Último Check', value: systemHealth?.timestamp ? new Date(systemHealth.timestamp).toLocaleTimeString() : 'Aguardando...', color: 'text-gray-400' },
+          { label: 'Último Check', value: systemHealth?.timestamp ? (isNaN(new Date(systemHealth.timestamp).getTime()) ? 'Data Inválida' : new Date(systemHealth.timestamp).toLocaleTimeString()) : 'Aguardando...', color: 'text-gray-400' },
           { label: 'Sessão Expira', value: '6 dias', color: 'text-orange-500' },
         ].map((stat, i) => (
           <div key={i} className="glass-panel technical-border p-3 rounded-xl">

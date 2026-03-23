@@ -155,18 +155,22 @@ export async function processRecurringTransactions(userId: number) {
 
       // Calculate next date
       const nextDate = new Date(item.next_date);
-      if (item.frequency === 'monthly') {
-        nextDate.setMonth(nextDate.getMonth() + 1);
-      } else if (item.frequency === 'weekly') {
-        nextDate.setDate(nextDate.getDate() + 7);
-      } else if (item.frequency === 'yearly') {
-        nextDate.setFullYear(nextDate.getFullYear() + 1);
-      }
+      if (!isNaN(nextDate.getTime())) {
+        if (item.frequency === 'monthly') {
+          nextDate.setMonth(nextDate.getMonth() + 1);
+        } else if (item.frequency === 'weekly') {
+          nextDate.setDate(nextDate.getDate() + 7);
+        } else if (item.frequency === 'yearly') {
+          nextDate.setFullYear(nextDate.getFullYear() + 1);
+        }
 
-      // Update recurring record
-      await trx('recurring_transactions')
-        .where('id', item.id)
-        .update({ next_date: nextDate.toISOString().split('T')[0] });
+        // Update recurring record
+        await trx('recurring_transactions')
+          .where('id', item.id)
+          .update({ next_date: nextDate.toISOString().split('T')[0] });
+      } else {
+        console.error('Data inválida encontrada em transação recorrente:', item.next_date);
+      }
     });
   }
 }

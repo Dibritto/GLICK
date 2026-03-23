@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import Tooltip from './Tooltip';
 import ModuleMarketplace from './ModuleMarketplace';
 import ForecastView from './ForecastView';
 import MovementsView from './MovementsView';
@@ -76,6 +77,8 @@ const MainConsole: React.FC<MainConsoleProps> = ({
     predictedIncome, 
     predictedExpense, 
     projectedBalance,
+    pendingIncome,
+    pendingExpense,
     moneyVelocity,
     retentionRate,
     dailyAverageSpending,
@@ -126,40 +129,52 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400">Estados do Dinheiro (Core Engine)</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Saldo Total</p>
-            <p className="text-2xl font-mono font-bold text-white">{formatCurrency(totalBalance)}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="glass-panel technical-border p-5 md:p-6 rounded-lg hover:border-brand-blue/30 transition-all group card-container min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Saldo Total</p>
+            <div className="fluid-value font-mono font-bold text-white">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(totalBalance, false)}
+            </div>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <TrendingUp size={12} className="text-brand-green" />
-              <span>Soma de todas as contas</span>
+              <span className="truncate">Soma de todas as contas</span>
             </div>
           </div>
 
-          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
+          <div className="glass-panel technical-border p-5 md:p-6 rounded-lg hover:border-brand-red/30 transition-all group card-container min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-brand-red mb-2 font-bold">Comprometido</p>
-            <p className="text-2xl font-mono font-bold text-brand-red">{formatCurrency(committedBalance)}</p>
+            <div className="fluid-value font-mono font-bold text-brand-red">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(committedBalance, false)}
+            </div>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <CreditCard size={12} className="text-brand-red" />
-              <span>Faturas + Pendências</span>
+              <span className="truncate">Faturas + Pendências</span>
             </div>
           </div>
 
-          <div className="glass-panel technical-border p-6 rounded-lg glow-blue-hover transition-all">
+          <div className="glass-panel technical-border p-5 md:p-6 rounded-lg hover:border-brand-orange/30 transition-all group card-container min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-brand-orange mb-2 font-bold">Reservado</p>
-            <p className="text-2xl font-mono font-bold text-brand-orange">{formatCurrency(reservedBalance)}</p>
+            <div className="fluid-value font-mono font-bold text-brand-orange">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(reservedBalance, false)}
+            </div>
             <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
               <ShieldCheck size={12} className="text-brand-orange" />
-              <span>Alocado em Metas</span>
+              <span className="truncate">Alocado em Metas</span>
             </div>
           </div>
 
-          <div className="bg-brand-blue/10 border border-brand-blue/30 p-6 rounded-lg glow-blue">
-            <p className="text-[10px] uppercase tracking-widest text-brand-blue mb-2 font-bold">Capital Livre</p>
-            <p className="text-2xl font-mono font-bold text-brand-blue">{formatCurrency(freeCapital)}</p>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-blue/70">
+          <div className="bg-brand-green/5 border border-brand-green/30 p-5 md:p-6 rounded-lg shadow-[0_0_20px_rgba(46,204,113,0.05)] group card-container min-w-0 hover:border-brand-green/50 transition-all">
+            <p className="text-[10px] uppercase tracking-widest text-brand-green mb-2 font-bold">Capital Livre</p>
+            <div className="fluid-value font-mono font-bold text-brand-green">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(freeCapital, false)}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green/70">
               <Zap size={12} />
-              <span>Disponível para uso</span>
+              <span className="truncate">Disponível para uso</span>
             </div>
           </div>
         </div>
@@ -178,12 +193,12 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                 <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00FF9F" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00FF9F" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#2ECC71" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#2ECC71" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF4B4B" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#FF4B4B" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#FF3B30" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#FF3B30" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#3C3C45" vertical={false} />
@@ -207,14 +222,14 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                 <Area 
                   type="monotone" 
                   dataKey="receitas" 
-                  stroke="#00FF9F" 
+                  stroke="#2ECC71" 
                   fillOpacity={1} 
                   fill="url(#colorReceitas)" 
                 />
                 <Area 
                   type="monotone" 
                   dataKey="despesas" 
-                  stroke="#FF4B4B" 
+                  stroke="#FF3B30" 
                   fillOpacity={1} 
                   fill="url(#colorDespesas)" 
                 />
@@ -263,7 +278,14 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <div className="glass-panel technical-border p-6 rounded-lg space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-[10px] uppercase tracking-widest text-gray-500">Projeção de Saldo Final</p>
-              <p className="text-lg font-mono font-bold text-brand-blue">{formatCurrency(projectedBalance)}</p>
+              <Tooltip 
+                text={`Cálculo: Saldo Atual (${formatCurrency(totalBalance)}) + Entradas Pendentes (${formatCurrency(pendingIncome)}) - Saídas Pendentes (${formatCurrency(pendingExpense)}) + Recorrências Futuras (${formatCurrency(predictedIncome - predictedExpense)})`} 
+                position="top"
+              >
+                <p className="text-lg font-mono font-bold text-brand-orange cursor-help border-b border-dashed border-brand-orange/50">
+                  {formatCurrency(projectedBalance)}
+                </p>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-gray-500 italic">
               <Clock size={12} />

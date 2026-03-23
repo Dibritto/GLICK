@@ -30,12 +30,16 @@ export const formatDate = (dateString: string): string => {
     // que ocorre ao usar new Date(dateString) diretamente.
     if (dateString.includes('T')) {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
       return new Intl.DateTimeFormat('pt-BR').format(date);
     }
     
     const [year, month, day] = dateString.split('-').map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return dateString;
+    
     // Note: month is 0-indexed in JS Date
     const date = new Date(year, month - 1, day);
+    if (isNaN(date.getTime())) return dateString;
     return new Intl.DateTimeFormat('pt-BR').format(date);
   } catch (e) {
     return dateString;

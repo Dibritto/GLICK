@@ -3,7 +3,10 @@ import { Account, Transaction, Category, Goal, Card } from '../types';
 
 // Função para forçar a data a ser interpretada localmente, ignorando o fuso horário
 const getLocalDate = (dateString: string) => {
-  const [year, month, day] = dateString.split('-').map(Number);
+  if (!dateString) return new Date();
+  const parts = dateString.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return new Date();
+  const [year, month, day] = parts;
   return new Date(year, month - 1, day);
 };
 
@@ -95,7 +98,7 @@ export const useFinanceCalculations = ({
     const recurringTemplates = transactions.filter(t => t.recurrence && t.recurrence !== 'none');
     const uniqueTemplates = Array.from(new Map(
       recurringTemplates
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => getLocalDate(b.date).getTime() - getLocalDate(a.date).getTime())
         .map(t => [`${t.description}-${t.category}`, t])
     ).values()) as Transaction[];
 
@@ -125,7 +128,7 @@ export const useFinanceCalculations = ({
     pExpense += pendingTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + Number(curr.amount), 0);
 
     const allSorted = [...transactions, ...projected].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      getLocalDate(b.date).getTime() - getLocalDate(a.date).getTime()
     );
 
     return { predictedIncome: pIncome, predictedExpense: pExpense, projectedTransactions: projected, allTransactionsSorted: allSorted };
@@ -256,6 +259,8 @@ export const useFinanceCalculations = ({
       predictedIncome,
       predictedExpense,
       projectedBalance: coreStats?.projectedBalance ?? (totalBalance + pendingIncome - pendingExpense + predictedIncome - predictedExpense),
+      pendingIncome,
+      pendingExpense,
       moneyVelocity: coreStats?.dailyAverageSpend ? coreStats.dailyAverageSpend.toFixed(2) : moneyVelocity,
       retentionRate,
       dailyAverageSpending: coreStats?.dailyAverageSpend ?? dailyAverageSpending,

@@ -25,7 +25,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
   const { createAccount, updateAccount, deleteAccount, recalculateAccountBalance } = useFinance();
   const [name, setName] = useState(editingAccount?.name || '');
   const [type, setType] = useState(editingAccount?.type || 'checking');
-  const [balance, setBalance] = useState(editingAccount?.balance.toString() || '');
+  const [balance, setBalance] = useState(editingAccount?.balance?.toString() || '0');
   const [initialBalance, setInitialBalance] = useState(editingAccount?.initial_balance?.toString() || '0');
   const [color, setColor] = useState(editingAccount?.color || '#2CC7FF');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +37,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, editingAcc
     if (editingAccount) {
       setName(editingAccount.name);
       setType(editingAccount.type);
-      setBalance(editingAccount.balance.toString());
+      setBalance(editingAccount.balance?.toString() || '0');
       setInitialBalance(editingAccount.initial_balance?.toString() || '0');
       setColor(editingAccount.color);
     } else {

@@ -1,43 +1,44 @@
 import knex from 'knex';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Carregar .env da raiz do projeto explicitamente
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 const isProduction = process.env.NODE_ENV === 'production';
-// No ambiente de preview do AI Studio, forçamos SQLite se o host for localhost
-// pois o banco MySQL da Hostinger não é acessível daqui.
-const isPreviewEnv = process.env.APP_URL?.includes('run.app') || process.env.SHARED_APP_URL?.includes('run.app');
-const useSqlite = !process.env.DB_HOST || (process.env.DB_HOST === 'localhost' && isPreviewEnv);
 
-const dbConfig = useSqlite 
-  ? {
-      client: 'better-sqlite3',
-      connection: {
-        filename: './data.sqlite'
-      },
-      useNullAsDefault: true,
-      pool: {
-        afterCreate: (conn: any, cb: any) => {
-          conn.pragma('journal_mode = DELETE');
-          conn.pragma('foreign_keys = ON');
-          cb(null, conn);
-        }
-      }
+if (!process.env.DB_HOST) {
+  throw new Error('CONFIGURAÇÃO AUSENTE: DB_HOST não definido no ambiente. O sistema exige MySQL para operação.');
+}
+
+const dbConfig = {
+  client: 'mysql2',
+  connection: {
+    host: '193.203.175.136',
+    port: 3306,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+  },
+  pool: { 
+    min: 1, 
+    max: 5,
+    acquireTimeoutMillis: 30000,
+    createTimeoutMillis: 30000,
+    idleTimeoutMillis: 30000,
+    reapIntervalMillis: 1000,
+    afterCreate: (conn: any, done: any) => {
+      conn.query('SELECT 1', (err: any) => {
+        done(err, conn);
+      });
     }
-  : {
-      client: 'mysql2',
-      connection: {
-        host: process.env.DB_HOST,
-        port: Number(process.env.DB_PORT) || 3306,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
-        ssl: isProduction ? { rejectUnauthorized: false } : false
-      },
-      pool: { min: 0, max: 7 }
-    };
+  }
+};
 
-console.log(`🗄️ Database mode: ${useSqlite ? 'SQLite (Preview)' : 'MySQL (Production)'}`);
 const db = knex(dbConfig);
 
 export default db;

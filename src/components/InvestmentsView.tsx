@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -161,7 +161,7 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
             <tbody className="divide-y divide-white/5">
               {investmentTransactions.map(tx => (
                 <tr key={tx.id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-4">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
+                  <td className="p-4">{formatDate(tx.date)}</td>
                   <td className="p-4 font-bold">{tx.symbol}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded text-xs ${

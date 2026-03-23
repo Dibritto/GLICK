@@ -110,13 +110,152 @@ Todos os módulos **NÃO** controlam dinheiro diretamente. Toda movimentação f
 
 ## Arquitetura de Dados (SQL)
 
-### Tabelas Principais
-1. **users**: id, name, email, password_hash, created_at.
-2. **modules**: id, slug, name, description, price, trial_days.
-3. **user_modules**: id, user_id, module_id, status (trial, active, expired, inactive), trial_ends_at, activated_at.
-4. **accounts**: id, user_id, name, type, balance, color, created_at.
-3. **transactions**: id, user_id, account_id, type (income, expense, transfer), category, amount, date, status (pending, confirmed), description, created_at.
-4. **goals**: id, user_id, name, target_amount, current_amount, deadline, created_at.
+O sistema utiliza um banco de dados SQL (MySQL/MariaDB) estruturado com as seguintes tabelas:
+
+### 1. users
+- `id`: increments, primary key
+- `name`: string, not nullable
+- `email`: string, unique, not nullable
+- `password`: string, not nullable
+- `created_at`, `updated_at`: timestamps
+
+### 2. accounts
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `name`: string, not nullable
+- `type`: string, not nullable
+- `balance`: decimal(15,2), default 0
+- `initial_balance`: decimal(15,2), default 0
+- `color`: string, default '#2CC7FF'
+- `created_at`, `updated_at`: timestamps
+
+### 3. cards
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `account_id`: integer, foreign key (accounts.id)
+- `name`: string, not nullable
+- `brand`: string, not nullable
+- `limit`: decimal(15,2), default 0
+- `current_bill`: decimal(15,2), default 0
+- `closing_day`: integer, not nullable
+- `due_day`: integer, not nullable
+- `color`: string, default '#2CC7FF'
+- `created_at`, `updated_at`: timestamps
+
+### 4. goals
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `name`: string, not nullable
+- `target_amount`: decimal(15,2), not nullable
+- `current_amount`: decimal(15,2), default 0
+- `deadline`: date
+- `icon`: string, default 'Target'
+- `color`: string, default '#2CC7FF'
+- `created_at`, `updated_at`: timestamps
+
+### 5. transactions
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `account_id`: integer, foreign key (accounts.id)
+- `type`: string, not nullable (income, expense, transfer)
+- `category`: string, not nullable
+- `amount`: decimal(15,2), not nullable
+- `date`: date, not nullable
+- `description`: string
+- `status`: string, default 'confirmed'
+- `recurrence`: string, nullable
+- `destination_account_id`: integer, foreign key (accounts.id)
+- `card_id`: integer, foreign key (cards.id)
+- `goal_id`: integer, foreign key (goals.id)
+- `created_at`, `updated_at`: timestamps
+
+### 6. categories
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `name`: string, not nullable
+- `type`: string, not nullable (income, expense)
+- `icon`: string, default 'Tag'
+- `color`: string, default '#2CC7FF'
+- `budget`: decimal(15,2), default 0
+- `created_at`, `updated_at`: timestamps
+
+### 7. modules
+- `id`: increments, primary key
+- `name`: string, not nullable
+- `slug`: string, unique, not nullable
+- `description`: string
+- `icon`: string
+- `price`: decimal(10,2), default 0
+- `trial_days`: integer, default 7
+- `created_at`, `updated_at`: timestamps
+
+### 8. user_modules
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `module_id`: integer, foreign key (modules.id)
+- `status`: string, default 'trial'
+- `activated_at`: timestamp
+- `trial_ends_at`: timestamp
+- `created_at`, `updated_at`: timestamps
+
+### 9. assets
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `name`: string, not nullable
+- `symbol`: string, not nullable
+- `type`: string, not nullable (crypto, stock, fixed_income)
+- `quantity`: decimal(20,8), not nullable
+- `average_price`: decimal(20,8), not nullable
+- `current_price`: decimal(20,8), nullable
+- `institution`: string, nullable
+- `created_at`, `updated_at`: timestamps
+
+### 10. crypto_transactions
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `asset_id`: integer, foreign key (assets.id)
+- `type`: string, not nullable (buy, sell, transfer)
+- `quantity`: decimal(20,8), not nullable
+- `price_at_time`: decimal(20,8), not nullable
+- `fee`: decimal(20,8), default 0
+- `date`: date, not nullable
+- `created_at`, `updated_at`: timestamps
+
+### 11. investment_transactions
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `asset_id`: integer, foreign key (assets.id)
+- `type`: string, not nullable (buy, sell, yield, dividend)
+- `quantity`: decimal(20,8), not nullable
+- `price_at_time`: decimal(20,8), not nullable
+- `fee`: decimal(20,8), default 0
+- `date`: date, not nullable
+- `created_at`, `updated_at`: timestamps
+
+### 12. recurring_transactions
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `account_id`: integer, foreign key (accounts.id)
+- `type`: string, not nullable (income, expense)
+- `category`: string, not nullable
+- `amount`: decimal(15,2), not nullable
+- `frequency`: string, not nullable (monthly, weekly, yearly)
+- `day_of_month`: integer, default 1
+- `description`: string
+- `start_date`: date, not nullable
+- `end_date`: date, nullable
+- `active`: boolean, default true
+- `created_at`, `updated_at`: timestamps
+
+### 13. forecasts
+- `id`: increments, primary key
+- `user_id`: integer, foreign key (users.id)
+- `forecast_date`: date, not nullable
+- `projected_balance`: decimal(15,2), not nullable
+- `projected_income`: decimal(15,2), default 0
+- `projected_expense`: decimal(15,2), default 0
+- `details`: json
+- `created_at`, `updated_at`: timestamps
 
 ## Guia de Migração (MySQL/Hostinger)
 

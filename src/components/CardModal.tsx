@@ -25,11 +25,11 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
   const { token } = useAuth();
   const { refreshData, accounts, updateCard, deleteCard } = useFinance();
   const [name, setName] = useState(editingCard?.name || '');
-  const [accountId, setAccountId] = useState(editingCard?.account_id.toString() || '');
+  const [accountId, setAccountId] = useState(editingCard?.account_id?.toString() || '');
   const [brand, setBrand] = useState(editingCard?.brand || 'Visa');
-  const [limit, setLimit] = useState(editingCard?.limit.toString() || '');
-  const [closingDay, setClosingDay] = useState(editingCard?.closing_day.toString() || '5');
-  const [dueDay, setDueDay] = useState(editingCard?.due_day.toString() || '12');
+  const [limit, setLimit] = useState(editingCard?.limit?.toString() || '');
+  const [closingDay, setClosingDay] = useState(editingCard?.closing_day?.toString() || '5');
+  const [dueDay, setDueDay] = useState(editingCard?.due_day?.toString() || '12');
   const [color, setColor] = useState(editingCard?.color || '#FF4B4B');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -38,11 +38,11 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
   useEffect(() => {
     if (editingCard) {
       setName(editingCard.name);
-      setAccountId(editingCard.account_id.toString());
+      setAccountId(editingCard.account_id?.toString() || '');
       setBrand(editingCard.brand);
-      setLimit(editingCard.limit.toString());
-      setClosingDay(editingCard.closing_day.toString());
-      setDueDay(editingCard.due_day.toString());
+      setLimit(editingCard.limit?.toString() || '');
+      setClosingDay(editingCard.closing_day?.toString() || '5');
+      setDueDay(editingCard.due_day?.toString() || '12');
       setColor(editingCard.color);
     } else {
       setName('');

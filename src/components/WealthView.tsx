@@ -66,27 +66,36 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-panel technical-border p-6 rounded-xl">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Patrimônio Líquido</p>
-          <p className="text-3xl font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
+        <div className="glass-panel technical-border p-6 rounded-xl card-container">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Patrimônio Líquido</p>
+          <div className="fluid-value font-mono font-bold text-white">
+            <span className="currency-symbol">R$</span>
+            {formatCurrency(netWorth, false)}
+          </div>
           <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green">
             <TrendingUp size={12} />
             <span>Consolidado de todas as contas e ativos</span>
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-xl">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Ativos Físicos</p>
-          <p className="text-3xl font-mono font-bold text-white">{formatCurrency(0)}</p>
+        <div className="glass-panel technical-border p-6 rounded-xl card-container">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Ativos Físicos</p>
+          <div className="fluid-value font-mono font-bold text-white">
+            <span className="currency-symbol">R$</span>
+            {formatCurrency(0, false)}
+          </div>
           <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
             <Home size={12} />
             <span>Imóveis, Veículos, etc.</span>
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-xl">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Liquidez Imediata</p>
-          <p className="text-3xl font-mono font-bold text-white">{formatCurrency(netWorth)}</p>
+        <div className="glass-panel technical-border p-6 rounded-xl card-container">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Liquidez Imediata</p>
+          <div className="fluid-value font-mono font-bold text-white">
+            <span className="currency-symbol">R$</span>
+            {formatCurrency(netWorth, false)}
+          </div>
           <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
             <Activity size={12} />
             <span>Disponível em contas correntes</span>

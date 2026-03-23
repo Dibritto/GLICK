@@ -1,5 +1,5 @@
 export type TransactionType = 'income' | 'expense' | 'transfer';
-export type TransactionStatus = 'confirmed' | 'pending';
+export type TransactionStatus = 'confirmed' | 'pending' | 'reconciled';
 export type RecurrenceType = 'none' | 'weekly' | 'monthly' | 'yearly';
 
 export interface Account {
@@ -119,6 +119,8 @@ export interface DerivedData {
   predictedIncome: number;
   predictedExpense: number;
   projectedBalance: number;
+  pendingIncome: number;
+  pendingExpense: number;
   moneyVelocity: string;
   retentionRate: number;
   dailyAverageSpending: number;

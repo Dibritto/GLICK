@@ -94,6 +94,7 @@ export async function checkModuleAccess(userId: number, moduleSlug: string): Pro
   if (userMod.status === 'trial') {
     const now = new Date();
     const trialEnd = new Date(userMod.trial_ends_at);
+    if (isNaN(trialEnd.getTime())) return false;
     return now < trialEnd;
   }
 

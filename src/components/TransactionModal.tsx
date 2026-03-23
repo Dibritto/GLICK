@@ -53,26 +53,43 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+
   useEffect(() => {
     if (editingTransaction) {
-      setType(editingTransaction.type);
-      setAmount(editingTransaction.amount.toString());
-      setDescription(editingTransaction.description);
-      setCategory(editingTransaction.category);
-      setAccountId(editingTransaction.account_id.toString());
-      setDestinationAccountId(editingTransaction.destination_account_id?.toString() || '');
-      setCardId(editingTransaction.card_id?.toString() || '');
-      setGoalId(editingTransaction.goal_id?.toString() || '');
-      setStatus(editingTransaction.status as 'confirmed' | 'pending' | 'reconciled' || 'confirmed');
-      // Evitar problemas de fuso horário ao carregar a data para o input
-      const transactionDate = editingTransaction.date;
-      if (transactionDate.includes('T')) {
-        setDate(new Date(transactionDate).toISOString().split('T')[0]);
-      } else {
-        setDate(transactionDate);
+      // Só reseta se for uma transação diferente ou se não tivermos uma transação sendo editada
+      if (editingTransactionId !== editingTransaction.id) {
+        setEditingTransactionId(editingTransaction.id);
+        setType(editingTransaction.type);
+        setAmount(editingTransaction.amount?.toString() || '0');
+        setDescription(editingTransaction.description || '');
+        setCategory(editingTransaction.category || '');
+        setAccountId(editingTransaction.account_id?.toString() || '');
+        setDestinationAccountId(editingTransaction.destination_account_id?.toString() || '');
+        setCardId(editingTransaction.card_id?.toString() || '');
+        setGoalId(editingTransaction.goal_id?.toString() || '');
+        setStatus(editingTransaction.status as 'confirmed' | 'pending' | 'reconciled' || 'confirmed');
+        // Evitar problemas de fuso horário ao carregar a data para o input
+        const transactionDate = editingTransaction.date;
+        if (transactionDate && typeof transactionDate === 'string' && transactionDate.includes('T')) {
+          const dateObj = new Date(transactionDate);
+          if (!isNaN(dateObj.getTime())) {
+            setDate(dateObj.toISOString().split('T')[0]);
+          } else {
+            console.error('Data de transação inválida:', transactionDate);
+            setDate(new Date().toISOString().split('T')[0]);
+          }
+        } else if (transactionDate) {
+          setDate(transactionDate);
+        } else {
+          // Fallback para a data atual se a transação não tiver data
+          const now = new Date();
+          setDate(now.toISOString().split('T')[0]);
+        }
+        setRecurrence(editingTransaction.recurrence || 'none');
       }
-      setRecurrence(editingTransaction.recurrence || 'none');
     } else {
+      setEditingTransactionId(null);
       setType(initialType);
       setAmount('');
       setDescription('');
@@ -80,7 +97,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setAccountId('');
       setDestinationAccountId('');
       setCardId('');
-      setGoalId(prefilledGoal ? prefilledGoal.id.toString() : '');
+      setGoalId(prefilledGoal ? prefilledGoal.id?.toString() || '' : '');
       if (prefilledGoal) {
         setCategory(initialType === 'income' ? 'Resgate de Meta' : 'Aporte em Meta');
         setDescription(initialType === 'income' ? `Resgate: ${prefilledGoal.name}` : `Aporte: ${prefilledGoal.name}`);
@@ -94,7 +111,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       setStatus('confirmed');
       setRecurrence('none');
     }
-  }, [editingTransaction, initialType, prefilledGoal]);
+  }, [editingTransaction, initialType, prefilledGoal, editingTransactionId]);
 
   // Efeito para auto-definir status baseado na data
   useEffect(() => {
@@ -102,12 +119,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const selectedDate = new Date(date + 'T12:00:00'); // Usar meio-dia para evitar problemas de fuso
+      const [year, month, day] = date.split('-').map(Number);
+      const selectedDate = new Date(year, month - 1, day); // Usar construtor seguro
       
-      if (selectedDate > today) {
-        setStatus('pending');
-      } else if (!editingTransaction) {
-        setStatus('confirmed');
+      if (!isNaN(selectedDate.getTime())) {
+        if (selectedDate > today) {
+          setStatus('pending');
+        } else if (!editingTransaction) {
+          setStatus('confirmed');
+        }
       }
     }
   }, [date, editingTransaction]);
@@ -345,7 +365,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
                   >
                     <option value="" disabled className="bg-brand-gray-deep">Selecionar...</option>
-                    {accounts.filter(acc => acc.id.toString() !== accountId).map(acc => (
+                    {accounts.filter(acc => acc.id?.toString() !== accountId).map(acc => (
                       <option key={acc.id} value={acc.id} className="bg-brand-gray-deep">
                         {acc.name} ({formatCurrency(acc.balance)})
                       </option>
@@ -365,7 +385,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"
                 >
                   <option value="" disabled className="bg-brand-gray-deep">Selecionar...</option>
-                  {accounts.filter(acc => acc.id.toString() !== destinationAccountId).map(acc => (
+                  {accounts.filter(acc => acc.id?.toString() !== destinationAccountId).map(acc => (
                     <option key={acc.id} value={acc.id} className="bg-brand-gray-deep">
                       {acc.name} ({formatCurrency(acc.balance)})
                     </option>
@@ -384,8 +404,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                   onChange={(e) => {
                     setCardId(e.target.value);
                     if (e.target.value) {
-                      const card = cards.find(c => c.id.toString() === e.target.value);
-                      if (card) setAccountId(card.account_id.toString());
+                      const card = cards.find(c => c.id?.toString() === e.target.value);
+                      if (card) setAccountId(card.account_id?.toString() || '');
                     }
                   }}
                   className="w-full bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-3 px-4 text-sm text-white focus:border-brand-blue/50 focus:outline-none transition-all appearance-none"

@@ -48,7 +48,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
       </header>
 
       {/* Grid de Categorias */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4">
             <Loader2 size={32} className="text-brand-blue animate-spin" />
@@ -63,30 +63,39 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                 transition={{ delay: i * 0.05 }}
                 key={cat.id}
                 onClick={() => onEditCategory?.(cat)}
-                className="glass-panel technical-border p-5 rounded-lg group hover:border-brand-blue/20 transition-all cursor-pointer"
+                className="glass-panel technical-border p-5 rounded-lg group hover:border-brand-blue/30 hover:shadow-[0_0_20px_rgba(44,199,255,0.05)] transition-all cursor-pointer relative overflow-hidden card-container"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-brand-blue/5 transition-all" />
+                
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div 
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-white/5 border border-white/10"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-white/5 border border-white/10 shrink-0 group-hover:border-brand-blue/30 transition-all"
                     >
                       {cat.icon}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white tracking-tight">{cat.name}</h3>
-                      <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">Orçamento Mensal</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-white tracking-tight truncate" title={cat.name}>{cat.name}</h3>
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-tighter shrink-0 ${cat.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-orange/10 text-brand-orange'}`}>
+                          {cat.type === 'income' ? 'Rec' : 'Des'}
+                        </span>
+                      </div>
+                      <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold truncate">Orçamento Mensal</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <p className="text-xs font-mono font-bold text-white">
-                      {formatCurrency(cat.spent)}
-                    </p>
-                    <p className="text-[10px] font-mono text-gray-500">
-                      de {formatCurrency(cat.budget)}
-                    </p>
+                <div className="space-y-3 relative z-10">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <div className="fluid-value font-mono font-bold text-white">
+                      <span className="currency-symbol">R$</span>
+                      {formatCurrency(cat.spent, false)}
+                    </div>
+                    <div className="text-[10px] font-mono text-gray-500 flex items-baseline gap-1">
+                      <span className="text-[0.7em] opacity-60">de</span>
+                      {formatCurrency(cat.budget)}
+                    </div>
                   </div>
 
                   <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden">
@@ -131,29 +140,46 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
 
       {/* Insights de Categorias */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel technical-border p-8 rounded-lg space-y-6">
-          <div className="flex items-center gap-3">
-            <PieChart className="text-brand-blue" size={20} />
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Gastos</h3>
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-blue/10 transition-all" />
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <PieChart className="text-brand-blue" size={20} />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Gastos</h3>
+            </div>
+            <div className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Análise Mensal</div>
           </div>
-          <div className="flex items-center justify-center h-48 border border-dashed border-brand-lead/20 rounded-xl">
-            <p className="text-xs text-gray-600 uppercase tracking-widest">Gráfico de Pizza em Desenvolvimento</p>
+          
+          <div className="flex items-center justify-center h-48 border border-dashed border-brand-lead/20 rounded-xl bg-black/20">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-brand-lead/40 mx-auto animate-spin-slow flex items-center justify-center">
+                <PieChart size={16} className="text-gray-600" />
+              </div>
+              <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-bold">Processando Gráfico...</p>
+            </div>
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-8 rounded-lg space-y-6">
-          <div className="flex items-center gap-3">
-            <TrendingDown className="text-brand-red" size={20} />
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Maiores Ofensores</h3>
+        <div className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-red/10 transition-all" />
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <TrendingDown className="text-brand-red" size={20} />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-400">Maiores Ofensores</h3>
+            </div>
+            <div className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Top 3 Gastos</div>
           </div>
-          <div className="space-y-4">
+
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {offenders.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-brand-red" />
-                  <p className="text-xs font-bold text-white">{item.name}</p>
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-brand-red" />
+                  <p className="text-xs font-bold text-white truncate" title={item.name}>{item.name}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</p>
                   <p className="text-[9px] text-gray-500 uppercase font-bold">
                     {totalExpense > 0 ? Math.round((Number(item.value) / totalExpense) * 100) : 0}% do total

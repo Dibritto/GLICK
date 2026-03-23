@@ -3,7 +3,7 @@ import { Calendar, Bell, Target, ChevronRight, AlertTriangle, Loader2 } from 'lu
 import { motion } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
 
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 const RightPanel: React.FC = () => {
   const { transactions, derivedData, isLoading } = useFinance();
@@ -53,7 +53,7 @@ const RightPanel: React.FC = () => {
                   <div className={`w-1 h-8 rounded-full ${item.type === 'income' ? 'bg-brand-green' : 'bg-brand-red'}`} />
                   <div>
                     <p className="text-xs font-bold text-gray-200">{item.description}</p>
-                    <p className="text-[10px] text-gray-500">{new Date(item.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</p>
+                    <p className="text-[10px] text-gray-500">{formatDate(item.date)}</p>
                   </div>
                 </div>
                 <p className={`text-xs font-mono font-bold ${item.type === 'income' ? 'text-brand-green' : 'text-brand-red'}`}>

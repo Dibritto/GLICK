@@ -46,6 +46,40 @@
   box-shadow: 0 0 15px rgba(44, 199, 255, 0.15);
 }
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-brand-lead/50 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-brand-blue/30;
+}
+
+.card-container {
+  container-type: inline-size;
+}
+
+.fluid-value {
+  font-size: clamp(1rem, 10cqw, 1.75rem);
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+
+.fluid-value .currency-symbol {
+  font-size: 0.55em;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
 @keyframes spin-slow {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

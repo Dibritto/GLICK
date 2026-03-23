@@ -48,7 +48,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
       </header>
 
       {/* Grid de Cartões */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10">
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4">
             <Loader2 size={32} className="text-brand-blue animate-spin" />
@@ -58,16 +58,16 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
           <>
             {cardsWithDynamicBill.map((card, i) => (
               <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={card.id}
-                className="flex flex-col md:flex-row gap-6"
+                className="flex flex-col lg:flex-row gap-8 items-start"
               >
                 {/* Representação Visual do Cartão */}
                 <div 
                   onClick={() => onEditCard?.(card)}
-                  className="w-full md:w-80 h-48 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-2xl group cursor-pointer"
+                  className="w-full lg:w-[380px] h-56 shrink-0 rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl group cursor-pointer"
                   style={{ 
                     background: `linear-gradient(135deg, ${card.color} 0%, #1A1A1D 100%)`,
                     border: '1px solid rgba(255,255,255,0.1)'
@@ -107,16 +107,22 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
                 </div>
 
                 {/* Informações de Limite e Fatura */}
-                <div className="flex-1 space-y-4">
-                  <div className="glass-panel technical-border p-5 rounded-lg space-y-4">
+                <div className="flex-1 space-y-4 min-w-0">
+                  <div className="glass-panel technical-border p-5 rounded-lg space-y-4 card-container">
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Fatura Atual</p>
-                        <p className="text-xl font-mono font-bold text-white">{formatCurrency(card.current_bill || 0)}</p>
+                        <div className="fluid-value font-mono font-bold text-white">
+                          <span className="currency-symbol">R$</span>
+                          {formatCurrency(card.current_bill || 0, false)}
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Limite Disponível</p>
-                        <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(Number(card.limit) - Number(card.current_bill || 0))}</p>
+                        <div className="text-sm font-mono font-bold text-brand-blue flex items-baseline justify-end gap-1">
+                          <span className="text-[0.6em] opacity-60">R$</span>
+                          {formatCurrency(Number(card.limit) - Number(card.current_bill || 0), false)}
+                        </div>
                       </div>
                     </div>
 
@@ -157,31 +163,37 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
 
       {/* Telemetria de Crédito */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-blue/10 text-brand-blue">
             <ShieldCheck size={24} />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Limite Total</p>
-            <p className="text-xl font-mono font-bold text-white">{formatCurrency(totalCardLimit)}</p>
+            <div className="fluid-value font-mono font-bold text-white">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(totalCardLimit, false)}
+            </div>
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-red/10 text-brand-red">
             <CreditCard size={24} />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Comprometimento</p>
-            <p className="text-xl font-mono font-bold text-white">{formatCurrency(totalCardUsed)}</p>
+            <div className="fluid-value font-mono font-bold text-white">
+              <span className="currency-symbol">R$</span>
+              {formatCurrency(totalCardUsed, false)}
+            </div>
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4">
+        <div className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-orange/10 text-brand-orange">
             <Zap size={24} />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Melhor Dia de Compra</p>
             <p className="text-xl font-mono font-bold text-white">Dia 08</p>
           </div>

@@ -75,8 +75,8 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   };
 
   const filteredMovements = allTransactionsSorted.filter(m => {
-    const matchesSearch = m.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          m.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (m.description?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                          (m.category?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || m.type === filterType;
     const matchesCategory = filterCategory === 'all' || m.category === filterCategory;
     
@@ -119,7 +119,11 @@ const MovementsView: React.FC<MovementsViewProps> = ({
 
   const formatMonthLabel = (monthStr: string) => {
     const [year, month] = monthStr.split('-');
-    const date = new Date(Number(year), Number(month) - 1, 1);
+    const y = Number(year);
+    const m = Number(month);
+    if (isNaN(y) || isNaN(m)) return 'Data Inválida';
+    const date = new Date(y, m - 1, 1);
+    if (isNaN(date.getTime())) return 'Data Inválida';
     return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date);
   };
 

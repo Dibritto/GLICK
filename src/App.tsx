@@ -140,7 +140,7 @@ export default function App() {
         {/* Conteúdo: Console e Painel Lateral Direito */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Área Central: Console Financeiro */}
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-24 lg:pb-0">
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-32 lg:pb-32">
             <MainConsole 
               activeView={activeView} 
               installedModules={installedModules}
@@ -177,6 +177,9 @@ export default function App() {
       <QuickActions 
         onAddExpense={() => setModal({ type: 'transaction', extra: { transactionType: 'expense', lockType: false } })}
         onAddIncome={() => setModal({ type: 'transaction', extra: { transactionType: 'income', lockType: false } })}
+        onAddTransfer={() => setModal({ type: 'transaction', extra: { transactionType: 'transfer' } })}
+        onAddGoal={() => setModal({ type: 'goal' })}
+        onNavigateReports={() => setActiveView('relatorios')}
       />
 
       {/* Modais Globais */}

@@ -65,7 +65,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
                 transition={{ delay: i * 0.1 }}
                 key={goal.id}
                 onClick={() => onEditGoal?.(goal)}
-                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all cursor-pointer"
+                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all cursor-pointer card-container"
               >
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center gap-4">
@@ -101,15 +101,17 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
                   <div className="flex justify-between items-end">
                     <div className="space-y-1">
                       <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Acumulado</p>
-                      <p className="text-xl font-mono font-bold text-white">
-                        {formatCurrency(goal.current_amount)}
-                      </p>
+                      <div className="fluid-value font-mono font-bold text-white">
+                        <span className="currency-symbol">R$</span>
+                        {formatCurrency(goal.current_amount, false)}
+                      </div>
                     </div>
                     <div className="text-right space-y-1">
                       <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Objetivo</p>
-                      <p className="text-sm font-mono font-bold text-gray-400">
-                        {formatCurrency(goal.target_amount)}
-                      </p>
+                      <div className="text-sm font-mono font-bold text-gray-400 flex items-baseline justify-end gap-1">
+                        <span className="text-[0.6em] opacity-60">R$</span>
+                        {formatCurrency(goal.target_amount, false)}
+                      </div>
                     </div>
                   </div>
                 </div>

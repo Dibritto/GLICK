@@ -24,7 +24,7 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
   const { token } = useAuth();
   const { createGoal, updateGoal, deleteGoal } = useFinance();
   const [name, setName] = useState(editingGoal?.name || '');
-  const [targetAmount, setTargetAmount] = useState(editingGoal?.target_amount.toString() || '');
+  const [targetAmount, setTargetAmount] = useState(editingGoal?.target_amount?.toString() || '');
   const [deadline, setDeadline] = useState(editingGoal?.deadline || '');
   const [color, setColor] = useState(editingGoal?.color || '#00FF9F');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +34,7 @@ const GoalModal: React.FC<GoalModalProps> = ({ isOpen, onClose, editingGoal }) =
   useEffect(() => {
     if (editingGoal) {
       setName(editingGoal.name);
-      setTargetAmount(editingGoal.target_amount.toString());
+      setTargetAmount(editingGoal.target_amount?.toString() || '0');
       setDeadline(editingGoal.deadline);
       setColor(editingGoal.color);
     } else {

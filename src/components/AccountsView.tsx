@@ -70,7 +70,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
       </header>
 
       {/* Grid de Contas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4">
             <Loader2 size={32} className="text-brand-blue animate-spin" />
@@ -85,7 +85,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                 transition={{ delay: i * 0.1 }}
                 key={acc.id}
                 onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
-                className={`glass-panel technical-border p-6 rounded-lg group transition-all relative overflow-hidden cursor-pointer ${
+                className={`glass-panel technical-border p-6 rounded-lg group transition-all relative overflow-hidden cursor-pointer card-container ${
                   selectedAccountId === acc.id ? 'border-brand-blue ring-1 ring-brand-blue/30' : 'hover:border-brand-blue/30'
                 }`}
               >
@@ -118,15 +118,17 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                 <div className="mt-6 grid grid-cols-2 gap-4 relative z-10">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Saldo Real</p>
-                    <p className="text-xl font-mono font-bold text-white">
-                      {formatCurrency(acc.balance)}
-                    </p>
+                    <div className="fluid-value font-mono font-bold text-white">
+                      <span className="currency-symbol">R$</span>
+                      {formatCurrency(acc.balance, false)}
+                    </div>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-brand-blue font-bold mb-1">Saldo Projetado</p>
-                    <p className="text-xl font-mono font-bold text-brand-blue">
-                      {formatCurrency(acc.projected_balance)}
-                    </p>
+                    <div className="fluid-value font-mono font-bold text-brand-blue">
+                      <span className="currency-symbol">R$</span>
+                      {formatCurrency(acc.projected_balance, false)}
+                    </div>
                   </div>
                 </div>
 
