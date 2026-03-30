@@ -30,15 +30,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const res = await fetch('/api/auth/me', {
+        const res = await fetch('/api/user/me', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
         if (res.ok) {
-          const userData = await res.json();
-          setUser(userData);
+          const responseData = await res.json();
+          setUser(responseData.success ? responseData.data : responseData);
         } else {
           // Token inválido ou expirado
           logout();
@@ -78,7 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const updatedUser = await res.json();
+        const responseData = await res.json();
+        const updatedUser = responseData.success ? responseData.data : responseData;
         setUser(updatedUser);
       } else {
         const error = await res.json();

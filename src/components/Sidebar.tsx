@@ -106,14 +106,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                   className={`
                     w-full flex items-center gap-3 px-3 py-2.5 text-xs font-medium rounded-lg transition-all duration-300 group relative overflow-hidden
                     ${activeView === item.id 
-                      ? 'text-brand-blue bg-brand-blue/5 shadow-[inset_0_0_20px_rgba(44,199,255,0.05)]' 
+                      ? 'text-brand-blue bg-brand-blue/10 border border-brand-blue/20' 
                       : 'text-gray-400 hover:text-white hover:bg-white/5'}
                   `}
                 >
                   {activeView === item.id && (
                     <motion.div 
                       layoutId="activeNav"
-                      className="absolute left-0 top-2 bottom-2 w-1 bg-brand-blue rounded-full"
+                      className="absolute left-0 top-2.5 bottom-2.5 w-0.5 bg-brand-blue rounded-full"
                       aria-hidden="true"
                     />
                   )}

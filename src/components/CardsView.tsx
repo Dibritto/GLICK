@@ -30,8 +30,8 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCards = cardsWithDynamicBill.filter(card => 
-    card.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    card.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (card.account_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (card.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -75,14 +75,17 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
       </div>
 
       {/* Grid de Cartões */}
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-10">
+      <div 
+        className="grid gap-6" 
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}
+      >
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4" aria-live="polite">
             <Loader2 size={32} className="text-brand-blue animate-spin" aria-hidden="true" />
             <p className="text-xs text-gray-500 uppercase tracking-widest">Sincronizando Cartões...</p>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 2xl:grid-cols-2 gap-10 col-span-full" role="list">
+          <ul className="contents" role="list">
             {filteredCards.map((card, i) => (
               <motion.li 
                 initial={{ opacity: 0, y: 20 }}
@@ -91,19 +94,18 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
                 key={card.id}
                 role="listitem"
                 aria-label={`Cartão ${card.name} do banco ${card.account_name}`}
-                className="flex flex-col lg:flex-row gap-8 items-start"
+                className="glass-panel technical-border rounded-2xl overflow-hidden flex flex-col group"
               >
-                {/* Representação Visual do Cartão */}
+                {/* Visual do Cartão (Topo) */}
                 <div 
                   onClick={() => onEditCard?.(card)}
                   role="button"
                   tabIndex={0}
                   aria-label={`Editar detalhes do cartão ${card.name}`}
                   onKeyDown={(e) => e.key === 'Enter' && onEditCard?.(card)}
-                  className="w-full lg:w-[380px] h-56 shrink-0 rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl group cursor-pointer interactive-card"
+                  className="w-full h-44 p-6 flex flex-col justify-between relative overflow-hidden cursor-pointer"
                   style={{ 
                     background: `linear-gradient(135deg, ${card.color} 0%, #1A1A1D 100%)`,
-                    border: '1px solid rgba(255,255,255,0.1)'
                   }}
                 >
                   <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20 blur-2xl" aria-hidden="true" />
@@ -139,62 +141,59 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
                   </div>
                 </div>
 
-                {/* Informações de Limite e Fatura */}
-                <div className="flex-1 space-y-4 min-w-0 w-full">
-                  <article className="glass-panel technical-border p-5 rounded-lg space-y-4 card-container">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Fatura Atual</p>
-                        <div className="fluid-value font-mono font-bold text-white">
-                          <span className="currency-symbol">R$</span>
-                          {formatCurrency(card.current_bill || 0, false)}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">Limite Disponível</p>
-                        <div className="text-sm font-mono font-bold text-brand-blue flex items-baseline justify-end gap-1">
-                          <span className="text-[0.6em] opacity-60">R$</span>
-                          {formatCurrency(Number(card.limit) - Number(card.current_bill || 0), false)}
-                        </div>
+                {/* Telemetria da Fatura (Base) */}
+                <div className="p-4 space-y-3 bg-brand-graphite/50">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Fatura Atual</p>
+                      <div className="text-lg font-mono font-bold text-white">
+                        <span className="text-brand-blue mr-1 text-xs">R$</span>
+                        {formatCurrency(card.current_bill || 0, false)}
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Limite Disponível</p>
+                      <div className="text-xs font-mono font-bold text-brand-green flex items-baseline justify-end gap-1">
+                        <span className="text-[0.6em] opacity-60">R$</span>
+                        {formatCurrency(Number(card.limit) - Number(card.current_bill || 0), false)}
+                      </div>
+                    </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <div 
-                        className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={Math.round((Number(card.current_bill || 0) / Number(card.limit)) * 100)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`Uso do limite do cartão ${card.name}`}
-                      >
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(Number(card.current_bill || 0) / Number(card.limit)) * 100}%` }}
-                          className={`h-full ${(Number(card.current_bill || 0) / Number(card.limit)) > 0.8 ? 'bg-brand-red' : 'bg-brand-blue'}`} 
-                        />
-                      </div>
-                      <div className="flex justify-between text-[9px] uppercase font-bold text-gray-600 tracking-widest">
-                        <span>0%</span>
-                        <span>Utilização: {Math.round((Number(card.current_bill || 0) / Number(card.limit)) * 100)}%</span>
-                        <span>100%</span>
-                      </div>
+                  <div className="space-y-1.5">
+                    <div 
+                      className="h-1 w-full bg-brand-lead/20 rounded-full overflow-hidden"
+                      role="progressbar"
+                      aria-valuenow={Math.round((Number(card.current_bill || 0) / Number(card.limit)) * 100)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`Uso do limite do cartão ${card.name}`}
+                    >
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(Number(card.current_bill || 0) / Number(card.limit)) * 100}%` }}
+                        className={`h-full ${(Number(card.current_bill || 0) / Number(card.limit)) > 0.8 ? 'bg-brand-red' : 'bg-brand-blue'}`} 
+                      />
                     </div>
+                    <div className="flex justify-between text-[9px] uppercase font-bold text-gray-600 tracking-widest">
+                      <span>Utilização: {Math.round((Number(card.current_bill || 0) / Number(card.limit)) * 100)}%</span>
+                      <span>Limite: {formatCurrency(Number(card.limit), false)}</span>
+                    </div>
+                  </div>
 
-                    <div className="pt-4 border-t border-brand-lead/10 flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-[10px] text-brand-orange">
-                        <AlertCircle size={12} aria-hidden="true" />
-                        <span>Fatura em aberto</span>
-                      </div>
-                      <button 
-                        onClick={() => onEditCard?.(card)}
-                        aria-label={`Ver detalhes da fatura do cartão ${card.name}`}
-                        className="text-[10px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
-                      >
-                        Ver Detalhes <ChevronRight size={12} aria-hidden="true" />
-                      </button>
+                  <div className="pt-3 border-t border-brand-lead/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[9px] text-brand-orange">
+                      <AlertCircle size={10} aria-hidden="true" />
+                      <span>Fatura em aberto</span>
                     </div>
-                  </article>
+                    <button 
+                      onClick={() => onEditCard?.(card)}
+                      aria-label={`Ver detalhes da fatura do cartão ${card.name}`}
+                      className="text-[9px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
+                    >
+                      Ver Detalhes <ChevronRight size={10} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </motion.li>
             ))}
@@ -203,9 +202,13 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
       </div>
 
       {/* Telemetria de Crédito */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-labelledby="credit-telemetry-title">
+      <section 
+        className="grid gap-6" 
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
+        aria-labelledby="credit-telemetry-title"
+      >
         <h3 id="credit-telemetry-title" className="sr-only">Telemetria de Crédito</h3>
-        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container interactive-card">
+        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-blue/10 text-brand-blue" aria-hidden="true">
             <ShieldCheck size={24} />
           </div>
@@ -218,7 +221,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
           </div>
         </article>
 
-        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container interactive-card">
+        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-red/10 text-brand-red" aria-hidden="true">
             <CreditCard size={24} />
           </div>
@@ -231,7 +234,7 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
           </div>
         </article>
 
-        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container interactive-card">
+        <article className="glass-panel technical-border p-6 rounded-2xl flex items-center gap-4 card-container">
           <div className="p-3 rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
             <Zap size={24} />
           </div>

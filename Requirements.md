@@ -36,6 +36,7 @@ O GLICK é um console de decisão financeira diária projetado para oferecer con
 - **Configurações do Usuário:** Console dedicado para gestão de perfil, segurança, preferências de sistema e exportação de dados.
 - **Refinamento de Usabilidade:** Tooltips corrigidos para evitar clipping, contraste de cores aprimorado para legibilidade técnica e targets de interação otimizados.
 - **Controle de Layout:** Botões dedicados na barra superior para ocultar/mostrar as barras laterais esquerda e direita, permitindo foco total nos dados centrais.
+- **Design Fluido (Intrinsic Layout):** Prioridade técnica onde os elementos de grid utilizam `auto-fit` e `minmax` para se ajustarem automaticamente ao espaço disponível, eliminando a dependência de breakpoints rígidos e garantindo encaixe perfeito em qualquer resolução (de mobile a ultra-wide).
 - **Header Inteligente:** Telemetria responsiva que oculta rótulos de texto em telas menores para evitar sobreposição e garantir clareza visual.
 - **Console Modular:** Implementação completa das visões de Movimentações, Contas, Cartões, Metas, Categorias e Relatórios Inteligentes.
 - **Marketplace de Módulos:** Sistema de descoberta e ativação de extensões premium (Investimentos, etc).

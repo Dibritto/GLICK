@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import IconRenderer from './IconRenderer';
 
 import { Category } from '../types';
 
@@ -23,12 +24,20 @@ interface CategoryModalProps {
   editingCategory?: Category | null;
 }
 
+const AVAILABLE_ICONS = [
+  'Tag', 'Utensils', 'Car', 'Gamepad2', 'Heart', 'GraduationCap', 'Home', 'Wallet', 'TrendingUp', 'Smile',
+  'Briefcase', 'Coffee', 'ShoppingBag', 'Music', 'Book', 'Camera', 'Plane', 'Train', 'Bus', 'Bike',
+  'Smartphone', 'Laptop', 'Tv', 'Dumbbell', 'Beer', 'Wine', 'Pizza', 'Sun', 'Moon', 'Cloud', 'Zap',
+  'DollarSign', 'CreditCard', 'Building', 'Factory', 'School', 'Hospital', 'Stethoscope', 'Scissors'
+];
+
 const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingCategory }) => {
   const { token } = useAuth();
-  const { refreshData, updateCategory, deleteCategory } = useFinance();
+  const { refreshData, updateCategory, deleteCategory, createCategory } = useFinance();
   const [name, setName] = useState(editingCategory?.name || '');
   const [type, setType] = useState(editingCategory?.type || 'expense');
   const [color, setColor] = useState(editingCategory?.color || '#2CC7FF');
+  const [icon, setIcon] = useState(editingCategory?.icon || 'Tag');
   const [budget, setBudget] = useState(editingCategory?.budget || 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -39,11 +48,13 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
       setName(editingCategory.name);
       setType(editingCategory.type);
       setColor(editingCategory.color);
+      setIcon(editingCategory.icon || 'Tag');
       setBudget(editingCategory.budget || 0);
     } else {
       setName('');
       setType('expense');
       setColor('#2CC7FF');
+      setIcon('Tag');
       setBudget(0);
     }
   }, [editingCategory]);
@@ -53,28 +64,14 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
     setIsSubmitting(true);
     
     try {
-      const data = { name, type, color, budget: Number(budget) };
+      const data = { name, type, color, icon, budget: Number(budget) };
 
       if (editingCategory) {
         await updateCategory(editingCategory.id, data);
         toast.success('Categoria atualizada com sucesso');
       } else {
-        const res = await fetch('/api/categories', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-          await refreshData();
-          toast.success('Categoria criada com sucesso');
-        } else {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Erro ao criar categoria');
-        }
+        await createCategory(data);
+        toast.success('Categoria criada com sucesso');
       }
       onClose();
     } catch (error: any) {
@@ -149,6 +146,28 @@ const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, editingC
                     className="flex-1 bg-brand-lead/10 border border-brand-lead/20 rounded-xl py-2 px-3 text-[10px] font-mono text-white focus:outline-none"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold flex items-center gap-2">
+                <Tags size={12} /> Ícone
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {AVAILABLE_ICONS.map((iconName) => (
+                  <button
+                    key={iconName}
+                    type="button"
+                    onClick={() => setIcon(iconName)}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${
+                      icon === iconName 
+                        ? 'bg-brand-blue/20 border-brand-blue text-brand-blue' 
+                        : 'bg-brand-lead/10 border-brand-lead/20 text-gray-400 hover:border-brand-blue/30'
+                    }`}
+                  >
+                    <IconRenderer iconName={iconName} size={18} />
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -18,17 +18,23 @@ const Modal: React.FC<ModalProps> = ({
   children, 
   maxWidth = 'max-w-lg' 
 }) => {
-  // Bloquear scroll do body quando o modal estiver aberto
+  // Bloquear scroll do body quando o modal estiver aberto e adicionar suporte a tecla Escape
   useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleEscape);
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>

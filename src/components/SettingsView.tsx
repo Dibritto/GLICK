@@ -53,9 +53,11 @@ const SettingsView: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           setSystemHealth(data);
+        } else {
+          console.warn(`Aviso: Falha ao buscar telemetria (/api/health): ${res.status} ${res.statusText}`);
         }
       } catch (error) {
-        console.error('Falha ao buscar telemetria');
+        console.error('Erro ao buscar telemetria:', error);
       }
     };
     fetchHealth();
@@ -265,7 +267,7 @@ const SettingsView: React.FC = () => {
           { label: 'Último Check', value: systemHealth?.timestamp ? (isNaN(new Date(systemHealth.timestamp).getTime()) ? 'Data Inválida' : new Date(systemHealth.timestamp).toLocaleTimeString()) : 'Aguardando...', color: 'text-gray-400' },
           { label: 'Sessão Expira', value: '6 dias', color: 'text-orange-500' },
         ].map((stat, i) => (
-          <li key={i} className="glass-panel technical-border p-3 rounded-xl interactive-card" role="listitem">
+          <li key={i} className="glass-panel technical-border p-3 rounded-xl" role="listitem">
             <p className="text-[8px] uppercase tracking-widest text-gray-500 font-bold mb-1">{stat.label}</p>
             <p className={`text-xs font-mono font-bold ${stat.color}`}>{stat.value}</p>
           </li>
@@ -273,7 +275,7 @@ const SettingsView: React.FC = () => {
       </ul>
 
       {/* Card de Usuário */}
-      <article className="glass-panel technical-border p-6 rounded-2xl flex items-center justify-between interactive-card" aria-labelledby="user-profile-title">
+      <article className="glass-panel technical-border p-6 rounded-2xl flex items-center justify-between" aria-labelledby="user-profile-title">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue text-xl font-bold border border-brand-blue/30" aria-hidden="true">
             {user?.name?.substring(0, 2).toUpperCase()}
@@ -308,7 +310,7 @@ const SettingsView: React.FC = () => {
                   <motion.button
                     whileHover={{ x: 4 }}
                     onClick={item.onClick}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl glass-panel technical-border hover:bg-white/5 transition-all group text-left interactive-card ${item.danger ? 'hover:border-brand-red/50' : ''}`}
+                    className={`w-full flex items-center justify-between p-4 rounded-xl glass-panel technical-border hover:bg-white/5 transition-all group text-left ${item.danger ? 'hover:border-brand-red/50' : ''}`}
                     aria-label={`${item.label}: ${item.desc}`}
                   >
                     <div className="flex items-center gap-4">

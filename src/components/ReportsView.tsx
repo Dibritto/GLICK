@@ -31,6 +31,7 @@ import { formatCurrency, formatPercent } from '../utils/formatters';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
+import { Badge } from './ui/Badge';
 
 const ReportsView: React.FC = () => {
   const [isMounted, setIsMounted] = useState(false);
@@ -52,10 +53,38 @@ const ReportsView: React.FC = () => {
     financialAutonomy,
     incomeByCategory,
     goalsWithDynamicAmount,
-    categoriesWithSpent
+    categoriesWithSpent,
+    cryptoAssets,
+    investmentAssets,
+    totalBalance,
+    investedBalance,
+    netWorth
   } = derivedData;
 
+  const totalCryptoValue = cryptoAssets.reduce((acc: number, asset: any) => acc + (Number(asset.quantity) * Number(asset.current_price)), 0);
+  const totalInvestmentValue = investmentAssets.reduce((acc: number, asset: any) => acc + (Number(asset.quantity) * Number(asset.current_price)), 0);
+
+  const assetDistribution = [
+    { name: 'Liquidez (Contas)', value: totalBalance, color: '#2CC7FF' },
+    { name: 'Criptoativos', value: totalCryptoValue, color: '#F7931A' },
+    { name: 'Investimentos', value: totalInvestmentValue, color: '#2ECC71' }
+  ].filter(a => a.value > 0);
+
   const getInsight = () => {
+    if (totalCryptoValue > netWorth * 0.5) {
+      return {
+        title: "Alta Exposição em Cripto",
+        text: "Mais de 50% do seu patrimônio está em criptoativos. Considere rebalancear para reduzir a volatilidade.",
+        type: "warning"
+      };
+    }
+    if (totalInvestmentValue > 0 && totalInvestmentValue < totalBalance * 0.2) {
+      return {
+        title: "Oportunidade de Aporte",
+        text: "Seu saldo em conta está alto em relação aos investimentos. Considere aumentar seus aportes mensais.",
+        type: "info"
+      };
+    }
     if (totalExpense > totalIncome && totalIncome > 0) {
       return {
         title: "Atenção ao Fluxo",
@@ -172,9 +201,13 @@ const ReportsView: React.FC = () => {
           </motion.section>
 
           {/* KPIs de Performance */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" aria-labelledby="kpi-section-title">
+          <section className="grid gap-4" aria-labelledby="kpi-section-title">
             <h3 id="kpi-section-title" className="sr-only">KPIs de Performance</h3>
-            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 col-span-full" role="list">
+            <ul 
+              className="grid gap-4" 
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
+              role="list"
+            >
               {[
                 { 
                   label: 'Receita Total', 
@@ -190,8 +223,8 @@ const ReportsView: React.FC = () => {
                   icon: TrendingDown, 
                   color: expenseChange <= 0 ? 'text-brand-green' : 'text-brand-red' 
                 },
-                { label: 'Autonomia Financeira', val: `${financialAutonomy} dias`, change: 'Sobrevivência', icon: Zap, color: 'text-brand-blue' },
-                { label: 'Taxa de Retenção', val: formatPercent(retentionRate), change: 'Capital Preservado', icon: Activity, color: 'text-brand-orange' },
+                { label: 'Saldo Investido', val: formatCurrency(investedBalance), change: 'Ativos Totais', icon: Zap, color: 'text-brand-blue' },
+                { label: 'Patrimônio Líquido', val: formatCurrency(netWorth), change: 'Riqueza Real', icon: Activity, color: 'text-brand-orange' },
               ].map((kpi, i) => (
                 <motion.li 
                   initial={{ opacity: 0, y: 10 }}
@@ -199,7 +232,7 @@ const ReportsView: React.FC = () => {
                   transition={{ delay: i * 0.05 }}
                   key={i} 
                   role="listitem"
-                  className="glass-panel technical-border p-5 rounded-2xl interactive-card"
+                  className="glass-panel technical-border p-5 rounded-2xl"
                 >
                   <article>
                     <div className="flex justify-between items-start mb-2">
@@ -207,7 +240,7 @@ const ReportsView: React.FC = () => {
                       <kpi.icon size={16} className={kpi.color} aria-hidden="true" />
                     </div>
                     <p className="text-2xl font-mono font-bold text-white tracking-tighter">{kpi.val}</p>
-                    <p className={`text-[10px] font-bold mt-2 ${kpi.color}`}>{kpi.change} vs período anterior</p>
+                    <p className={`text-[10px] font-bold mt-2 ${kpi.color}`}>{kpi.change}</p>
                   </article>
                 </motion.li>
               ))}
@@ -215,9 +248,61 @@ const ReportsView: React.FC = () => {
           </section>
 
           {/* Gráficos Principais */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div 
+            className="grid gap-8" 
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))' }}
+          >
+            {/* Distribuição de Patrimônio */}
+            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="wealth-distribution-chart-title">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <PieChart className="text-brand-blue" size={20} aria-hidden="true" />
+                  <h3 id="wealth-distribution-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Patrimônio</h3>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px] items-center">
+                <div className="h-full" role="img" aria-label="Gráfico de pizza mostrando a distribuição do patrimônio">
+                  {isMounted && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RePieChart>
+                        <Pie
+                          data={assetDistribution}
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {assetDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ backgroundColor: '#1A1A1D', border: '1px solid #3C3C45', fontSize: '12px' }}
+                        />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <ul className="space-y-3" role="list">
+                  {assetDistribution.map((item, i) => (
+                    <li key={i} className="flex items-center justify-between" role="listitem">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                        <span className="text-xs text-gray-400">{item.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</p>
+                        <p className="text-[10px] text-gray-500">{((item.value / netWorth) * 100).toFixed(1)}%</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+
             {/* Comparativo Receitas x Despesas */}
-            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6 interactive-card" aria-labelledby="revenue-expense-chart-title">
+            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="revenue-expense-chart-title">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <BarChart3 className="text-brand-blue" size={20} aria-hidden="true" />
@@ -244,7 +329,7 @@ const ReportsView: React.FC = () => {
             </section>
 
             {/* Composição de Gastos */}
-            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6 interactive-card" aria-labelledby="expense-composition-chart-title">
+            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="expense-composition-chart-title">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <PieChart className="text-brand-orange" size={20} aria-hidden="true" />
@@ -290,91 +375,113 @@ const ReportsView: React.FC = () => {
             </section>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Distribuição de Receitas */}
-            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6 interactive-card" aria-labelledby="income-distribution-chart-title">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <PieChart className="text-brand-green" size={20} aria-hidden="true" />
-                  <h3 id="income-distribution-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Receitas</h3>
-                </div>
+          <div 
+            className="grid gap-8" 
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))' }}
+          >
+            {/* Detalhamento de Ativos Cripto */}
+            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="crypto-performance-title">
+              <div className="flex items-center gap-3">
+                <Activity className="text-brand-blue" size={20} aria-hidden="true" />
+                <h3 id="crypto-performance-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Performance Criptoativos</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[200px] items-center">
-                <div className="h-full" role="img" aria-label="Gráfico de pizza mostrando a distribuição de receitas por categoria">
-                  {isMounted && (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RePieChart>
-                        <Pie
-                          data={incomeByCategory}
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {incomeByCategory.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip />
-                      </RePieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-                <ul className="space-y-2 max-h-full overflow-y-auto pr-2" role="list" aria-label="Legenda de distribuição de receitas">
-                  {incomeByCategory.map((item, i) => (
-                    <li key={i} className="flex items-center justify-between" role="listitem">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
-                        <span className="text-xs text-gray-400">{item.name}</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-white">{formatCurrency(item.value)}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-brand-lead/20">
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Ativo</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Qtd</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Atual</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-right">P&L Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-lead/10">
+                    {cryptoAssets.map((asset: any, i: number) => {
+                      const currentVal = Number(asset.quantity) * Number(asset.current_price);
+                      const costBasis = Number(asset.quantity) * Number(asset.average_price);
+                      const pnl = currentVal - costBasis;
+                      const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                      return (
+                        <tr key={i} className="group hover:bg-white/5 transition-colors">
+                          <td className="py-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white">{asset.symbol}</span>
+                              <span className="text-[10px] text-gray-500">{asset.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 text-xs font-mono text-gray-400">{asset.quantity}</td>
+                          <td className="py-4 text-xs font-mono text-white">{formatCurrency(currentVal)}</td>
+                          <td className={`py-4 text-xs font-mono text-right ${pnl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                            <div>{formatCurrency(pnl)}</div>
+                            <div className="text-[10px]">{pnlPercent.toFixed(1)}%</div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {cryptoAssets.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-10 text-center text-[10px] text-gray-600 uppercase tracking-widest">Nenhum ativo cripto</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
 
-            {/* Progresso de Metas */}
-            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6 interactive-card" aria-labelledby="goals-progress-chart-title">
+            {/* Detalhamento de Investimentos */}
+            <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="investment-performance-title">
               <div className="flex items-center gap-3">
-                <Zap className="text-brand-orange" size={20} aria-hidden="true" />
-                <h3 id="goals-progress-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Progresso de Metas</h3>
+                <TrendingUp className="text-brand-green" size={20} aria-hidden="true" />
+                <h3 id="investment-performance-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Performance Investimentos</h3>
               </div>
-              <ul className="space-y-4" role="list" aria-label="Lista de progresso de metas">
-                {goalsWithDynamicAmount.map((goal, i) => {
-                  const progress = Math.min(100, (Number(goal.current_amount) / Number(goal.target_amount)) * 100);
-                  return (
-                    <li key={i} className="space-y-2" role="listitem">
-                      <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
-                        <span className="text-white">{goal.name}</span>
-                        <span className="text-gray-400">{formatPercent(progress / 100)}</span>
-                      </div>
-                      <div 
-                        className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={Math.round(progress)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`Progresso da meta ${goal.name}`}
-                      >
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress}%` }}
-                          className="h-full bg-brand-orange"
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-                {goalsWithDynamicAmount.length === 0 && (
-                  <p className="text-[10px] text-gray-600 uppercase tracking-widest text-center py-10">Sem metas ativas</p>
-                )}
-              </ul>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-brand-lead/20">
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Ativo</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Tipo</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold">Valor Atual</th>
+                      <th className="pb-4 text-[10px] uppercase tracking-widest text-gray-500 font-bold text-right">P&L Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-lead/10">
+                    {investmentAssets.map((asset: any, i: number) => {
+                      const currentVal = Number(asset.quantity) * Number(asset.current_price);
+                      const costBasis = Number(asset.quantity) * Number(asset.average_price);
+                      const pnl = currentVal - costBasis;
+                      const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                      return (
+                        <tr key={i} className="group hover:bg-white/5 transition-colors">
+                          <td className="py-4">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white">{asset.symbol}</span>
+                              <span className="text-[10px] text-gray-500">{asset.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-4">
+                            <Badge variant="neutral" className="text-[8px] uppercase">{asset.type}</Badge>
+                          </td>
+                          <td className="py-4 text-xs font-mono text-white">{formatCurrency(currentVal)}</td>
+                          <td className={`py-4 text-xs font-mono text-right ${pnl >= 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                            <div>{formatCurrency(pnl)}</div>
+                            <div className="text-[10px]">{pnlPercent.toFixed(1)}%</div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {investmentAssets.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-10 text-center text-[10px] text-gray-600 uppercase tracking-widest">Nenhum investimento</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
           </div>
 
           {/* Orçamento vs Realizado */}
-          <section className="glass-panel technical-border p-6 rounded-2xl space-y-6 interactive-card" aria-labelledby="budget-vs-actual-title">
+          <section className="glass-panel technical-border p-6 rounded-2xl space-y-6" aria-labelledby="budget-vs-actual-title">
             <div className="flex items-center gap-3">
               <BarChart3 className="text-brand-blue" size={20} aria-hidden="true" />
               <h3 id="budget-vs-actual-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Orçamento vs Realizado (Mês Atual)</h3>
@@ -432,7 +539,7 @@ const ReportsView: React.FC = () => {
           </section>
 
           {/* Performance Mensal */}
-          <section className="glass-panel technical-border p-8 rounded-2xl space-y-6 interactive-card" aria-labelledby="monthly-performance-chart-title">
+          <section className="glass-panel technical-border p-8 rounded-2xl space-y-6" aria-labelledby="monthly-performance-chart-title">
             <div className="flex items-center gap-3">
               <Activity className="text-brand-blue" size={20} aria-hidden="true" />
               <h3 id="monthly-performance-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Performance Mensal (Resultado)</h3>

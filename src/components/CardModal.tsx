@@ -25,7 +25,7 @@ interface CardModalProps {
 
 const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) => {
   const { token } = useAuth();
-  const { refreshData, accounts, updateCard, deleteCard } = useFinance();
+  const { refreshData, accounts, updateCard, deleteCard, createCard } = useFinance();
   const [name, setName] = useState(editingCard?.name || '');
   const [accountId, setAccountId] = useState(editingCard?.account_id?.toString() || '');
   const [brand, setBrand] = useState(editingCard?.brand || 'Visa');
@@ -81,22 +81,8 @@ const CardModal: React.FC<CardModalProps> = ({ isOpen, onClose, editingCard }) =
         await updateCard(editingCard.id, data);
         toast.success('Cartão atualizado com sucesso');
       } else {
-        const res = await fetch('/api/cards', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-          await refreshData();
-          toast.success('Cartão adicionado com sucesso');
-        } else {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Erro ao adicionar cartão');
-        }
+        await createCard(data);
+        toast.success('Cartão adicionado com sucesso');
       }
       onClose();
     } catch (error: any) {

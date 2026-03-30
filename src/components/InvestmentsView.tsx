@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFinance } from '../context/FinanceContext';
+import { useAuth } from '../context/AuthContext';
+import { useMarketPrice } from '../hooks/useMarketPrice';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight, Search } from 'lucide-react';
+import { Plus, TrendingUp, Activity, Lock, Zap, ChevronRight, Search, ArrowUpRight, ArrowDownRight, RefreshCw, Trash2, Edit2, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -9,15 +11,68 @@ import { Badge } from './ui/Badge';
 import { Select } from './ui/Select';
 import Modal from './Modal';
 
+const AssetRow = ({ asset, onEdit }: { asset: any, onEdit: (asset: any) => void }) => {
+  const { price, isLoading } = useMarketPrice(asset.symbol);
+  const currentPrice = price || asset.current_price || 0;
+  const averagePrice = asset.average_price || 0;
+  const totalValue = asset.quantity * currentPrice;
+  const totalInvested = asset.quantity * averagePrice;
+  const gain = totalValue - totalInvested;
+  const gainPercent = totalInvested > 0 ? (gain / totalInvested) * 100 : 0;
+  
+  return (
+    <li className="glass-panel p-4 rounded-lg border border-white/5 flex flex-col gap-4" role="listitem">
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-white uppercase tracking-widest text-lg">{asset.symbol}</p>
+            {isLoading && <RefreshCw size={12} className="animate-spin text-brand-orange" />}
+          </div>
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider">{asset.name}</p>
+        </div>
+        <Button variant="ghost" onClick={() => onEdit(asset)} className="text-[10px] h-6 px-2">Editar</Button>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4 bg-black/20 p-3 rounded-lg">
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Preço Médio</p>
+          <p className="font-mono text-sm text-gray-300">{formatCurrency(averagePrice)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Preço Atual</p>
+          <p className="font-mono text-sm text-white">{formatCurrency(currentPrice)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Saldo ({asset.quantity})</p>
+          <p className="font-mono text-sm text-white">{formatCurrency(totalValue)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Lucro / Prejuízo</p>
+          <p className={`font-mono text-sm font-bold flex items-center gap-1 ${gain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {gain >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            {formatCurrency(Math.abs(gain))} ({gainPercent > 0 ? '+' : ''}{gainPercent.toFixed(2)}%)
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+};
+
 interface InvestmentsViewProps {
   isInstalled?: boolean;
   onNavigateToMarketplace?: () => void;
 }
 
 const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, onNavigateToMarketplace }) => {
-  const { derivedData, createInvestmentTransaction } = useFinance();
+  const { derivedData, createInvestmentTransaction, updateInvestmentAsset, deleteInvestmentAsset, deleteInvestmentTransaction, updateInvestmentTransaction } = useFinance();
   const { investmentAssets, investmentTransactions, accounts } = derivedData;
+  const { token } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditTxModalOpen, setIsEditTxModalOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<any | null>(null);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
   const [formData, setFormData] = useState({
     symbol: '',
     name: '',
@@ -29,6 +84,51 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
     account_id: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  const [txFormData, setTxFormData] = useState({
+    quantity: '',
+    price_at_time: '',
+    date: ''
+  });
+
+  // Debounce para busca de preço
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.symbol && formData.symbol.length >= 2) {
+        fetchPrice(formData.symbol, formData.date);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.symbol, formData.date]);
+
+  const fetchPrice = async (symbol: string, date?: string) => {
+    if (!symbol || !token) return;
+    setIsFetchingPrice(true);
+    try {
+      const url = new URL(`/api/market/price/${symbol}`, window.location.origin);
+      if (date) {
+        url.searchParams.append('date', date);
+      }
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) {
+          setFormData(prev => ({ 
+            ...prev, 
+            price_at_time: data.price.toString(),
+            name: data.name || prev.name
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar preço:', error);
+    } finally {
+      setIsFetchingPrice(false);
+    }
+  };
 
   if (!isInstalled) {
     return (
@@ -100,6 +200,25 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
     });
   };
 
+  const handleEditTxSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    await updateInvestmentTransaction(editingTx.id, {
+      quantity: Number(txFormData.quantity),
+      price_at_time: Number(txFormData.price_at_time),
+      date: txFormData.date
+    });
+    setIsEditTxModalOpen(false);
+    setEditingTx(null);
+  };
+
+  const handleSymbolBlur = async () => {
+    // Mantido para compatibilidade, mas a lógica agora está no useEffect com debounce
+    if (formData.symbol && formData.symbol.length >= 2) {
+      fetchPrice(formData.symbol, formData.date);
+    }
+  };
+
   return (
     <section className="p-4 md:p-8 space-y-6" aria-labelledby="investments-view-title">
       {/* Cabeçalho Técnico */}
@@ -156,7 +275,7 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
       </nav>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <article className="glass-panel p-6 rounded-xl border border-white/5 interactive-card">
+        <article className="glass-panel p-6 rounded-xl border border-white/5">
           <p className="text-sm text-gray-400 mb-2 uppercase tracking-widest font-bold text-[10px]">Valor Total do Portfólio</p>
           <p className="text-3xl font-mono font-bold text-white">{formatCurrency(totalInvestmentValue)}</p>
         </article>
@@ -167,18 +286,14 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
           <Activity size={18} className="text-brand-green" aria-hidden="true" />
           Seus Ativos
         </h2>
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="list" aria-labelledby="assets-list-title">
+        <ul 
+          className="grid gap-4" 
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}
+          role="list" 
+          aria-labelledby="assets-list-title"
+        >
           {investmentAssets.map(asset => (
-            <li key={asset.id} className="glass-panel p-4 rounded-lg border border-white/5 flex justify-between items-center interactive-card" role="listitem">
-              <div>
-                <p className="font-bold text-white uppercase tracking-widest">{asset.symbol}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{asset.name}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-white">{asset.quantity} cotas</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{formatCurrency(asset.quantity * asset.current_price)}</p>
-              </div>
-            </li>
+            <AssetRow key={asset.id} asset={asset} onEdit={(a) => { setEditingAsset(a); setIsEditModalOpen(true); }} />
           ))}
           {investmentAssets.length === 0 && (
             <li className="col-span-full text-center py-8 text-gray-500 uppercase text-[10px] tracking-widest" aria-live="polite">
@@ -201,6 +316,7 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
                 <th scope="col" className="p-4 font-bold">Quantidade</th>
                 <th scope="col" className="p-4 font-bold">Preço</th>
                 <th scope="col" className="p-4 font-bold">Total</th>
+                <th scope="col" className="p-4 font-bold text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -220,11 +336,43 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
                   <td className="p-4 font-mono">{tx.quantity}</td>
                   <td className="p-4 font-mono">{formatCurrency(tx.price_at_time)}</td>
                   <td className="p-4 font-mono">{formatCurrency(tx.quantity * tx.price_at_time)}</td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => {
+                          setEditingTx(tx);
+                          setTxFormData({
+                            quantity: tx.quantity.toString(),
+                            price_at_time: tx.price_at_time.toString(),
+                            date: tx.date.split('T')[0]
+                          });
+                          setIsEditTxModalOpen(true);
+                        }}
+                        className="text-gray-400 hover:text-white p-2 h-auto"
+                        title="Editar Transação"
+                      >
+                        <Edit2 size={14} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => {
+                          if (confirm('Deseja excluir esta transação? O saldo do ativo será recalculado.')) {
+                            deleteInvestmentTransaction(tx.id);
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-400 p-2 h-auto"
+                        title="Excluir Transação"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {investmentTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500 uppercase text-[10px] tracking-widest" aria-live="polite">
+                  <td colSpan={7} className="p-8 text-center text-gray-500 uppercase text-[10px] tracking-widest" aria-live="polite">
                     Nenhuma transação registrada.
                   </td>
                 </tr>
@@ -241,14 +389,36 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input 
-              label="Símbolo (ex: PETR4)"
-              id="symbol"
-              type="text" 
-              required
-              value={formData.symbol}
-              onChange={e => setFormData({...formData, symbol: e.target.value.toUpperCase()})}
-            />
+            <div className="relative">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Input 
+                    label="Símbolo (ex: PETR4)"
+                    id="symbol"
+                    type="text" 
+                    required
+                    value={formData.symbol}
+                    onChange={e => setFormData({...formData, symbol: e.target.value.toUpperCase()})}
+                    onBlur={handleSymbolBlur}
+                  />
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSymbolBlur}
+                  disabled={!formData.symbol || isFetchingPrice}
+                  className="mb-[2px] px-3 py-2 h-[42px]"
+                  title="Buscar preço atual"
+                >
+                  <RefreshCw size={16} className={isFetchingPrice ? "animate-spin" : ""} />
+                </Button>
+              </div>
+              {isFetchingPrice && (
+                <span className="absolute right-14 top-9 text-[10px] text-brand-orange flex items-center gap-1">
+                  Buscando...
+                </span>
+              )}
+            </div>
             <Input 
               label="Nome (ex: Petrobras)"
               id="name"
@@ -311,6 +481,7 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
               required
               value={formData.date}
               onChange={e => setFormData({...formData, date: e.target.value})}
+              onBlur={handleSymbolBlur}
             />
             <Select
               id="account_id"
@@ -343,6 +514,87 @@ const InvestmentsView: React.FC<InvestmentsViewProps> = ({ isInstalled = false, 
             >
               Salvar
             </Button>
+          </footer>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Editar Ativo"
+      >
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          await updateInvestmentAsset(editingAsset.id, {
+            name: editingAsset.name,
+            symbol: editingAsset.symbol,
+            current_price: Number(editingAsset.current_price)
+          });
+          setIsEditModalOpen(false);
+        }} className="space-y-4">
+          <Input label="Nome" value={editingAsset?.name || ''} onChange={e => setEditingAsset({...editingAsset, name: e.target.value})} />
+          <Input label="Símbolo" value={editingAsset?.symbol || ''} onChange={e => setEditingAsset({...editingAsset, symbol: e.target.value})} />
+          <Input label="Preço Atual" type="number" step="any" value={editingAsset?.current_price || ''} onChange={e => setEditingAsset({...editingAsset, current_price: e.target.value})} />
+          <footer className="pt-4 flex gap-3">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={async () => {
+                if (confirm('Deseja realmente excluir este ativo e todas as suas transações?')) {
+                  await deleteInvestmentAsset(editingAsset.id);
+                  setIsEditModalOpen(false);
+                }
+              }} 
+              className="flex-1 py-3 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+            >
+              Excluir
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3">Cancelar</Button>
+            <Button type="submit" variant="primary" className="flex-1 py-3">Salvar</Button>
+          </footer>
+        </form>
+      </Modal>
+      <Modal
+        isOpen={isEditTxModalOpen}
+        onClose={() => setIsEditTxModalOpen(false)}
+        title="Editar Transação"
+      >
+        <form onSubmit={handleEditTxSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              id="edit-quantity"
+              label="Quantidade"
+              type="number" 
+              step="any"
+              required
+              value={txFormData.quantity}
+              onChange={e => setTxFormData({...txFormData, quantity: e.target.value})}
+            />
+            <Input 
+              id="edit-price"
+              label="Preço Unitário (R$)"
+              type="number" 
+              step="any"
+              required
+              value={txFormData.price_at_time}
+              onChange={e => setTxFormData({...txFormData, price_at_time: e.target.value})}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <Input 
+              id="edit-date"
+              label="Data"
+              type="date" 
+              required
+              value={txFormData.date}
+              onChange={e => setTxFormData({...txFormData, date: e.target.value})}
+            />
+          </div>
+
+          <footer className="pt-4 flex gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsEditTxModalOpen(false)} className="flex-1 py-3">Cancelar</Button>
+            <Button type="submit" variant="primary" className="flex-1 py-3">Salvar</Button>
           </footer>
         </form>
       </Modal>

@@ -33,7 +33,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'completed'>('all');
 
   const filteredGoals = goals.filter(goal => {
-    const matchesSearch = goal.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (goal.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const isCompleted = Number(goal.current_amount) >= Number(goal.target_amount);
     const matchesStatus = filterStatus === 'all' || 
       (filterStatus === 'active' && !isCompleted) || 
@@ -103,14 +103,17 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
       </nav>
 
       {/* Grid de Metas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div 
+        className="grid gap-6" 
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))' }}
+      >
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4" aria-live="polite">
             <Loader2 size={32} className="text-brand-blue animate-spin" aria-hidden="true" />
             <p className="text-xs text-gray-500 uppercase tracking-widest">Sincronizando Metas...</p>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-6 col-span-full" role="list">
+          <ul className="contents" role="list">
             {filteredGoals.map((goal, i) => (
               <motion.li 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -119,7 +122,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
                 key={goal.id}
                 role="listitem"
                 aria-label={`Meta: ${goal.name}`}
-                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all cursor-pointer card-container interactive-card"
+                className="glass-panel technical-border p-6 rounded-2xl group hover:border-brand-blue/30 transition-all cursor-pointer card-container"
               >
                 <div 
                   onClick={() => onEditGoal?.(goal)}
@@ -224,8 +227,11 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
       {/* Telemetria de Metas */}
       <section className="glass-panel technical-border p-8 rounded-2xl" aria-labelledby="goals-telemetry-title">
         <h3 id="goals-telemetry-title" className="sr-only">Telemetria de Metas</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          <article className="flex items-center gap-4 interactive-card p-4 rounded-xl">
+        <div 
+          className="grid gap-12" 
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}
+        >
+          <article className="flex items-center gap-4 p-4 rounded-xl">
             <div className="p-3 rounded-xl bg-brand-blue/10 text-brand-blue" aria-hidden="true">
               <TrendingUp size={24} />
             </div>
@@ -235,7 +241,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
             </div>
           </article>
 
-          <article className="flex items-center gap-4 interactive-card p-4 rounded-xl">
+          <article className="flex items-center gap-4 p-4 rounded-xl">
             <div className="p-3 rounded-xl bg-brand-green/10 text-brand-green" aria-hidden="true">
               <Trophy size={24} />
             </div>
@@ -245,7 +251,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ onAddGoal, onEditGoal, onAddFunds
             </div>
           </article>
 
-          <article className="flex items-center gap-4 interactive-card p-4 rounded-xl">
+          <article className="flex items-center gap-4 p-4 rounded-xl">
             <div className="p-3 rounded-xl bg-brand-orange/10 text-brand-orange" aria-hidden="true">
               <Zap size={24} />
             </div>

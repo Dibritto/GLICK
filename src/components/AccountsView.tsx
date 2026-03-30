@@ -37,7 +37,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
 
   const filteredAccounts = React.useMemo(() => {
     return accounts.filter(acc => {
-      const matchesSearch = acc.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (acc.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = filterType === 'all' || acc.type === filterType;
       return matchesSearch && matchesType;
     });
@@ -126,7 +126,10 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
       </nav>
 
       {/* Grid de Contas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
+      <div 
+        className="grid gap-8" 
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}
+      >
         {isLoading ? (
           <div className="col-span-full py-20 flex flex-col items-center gap-4" aria-live="polite">
             <Loader2 size={32} className="text-brand-blue animate-spin" aria-hidden="true" />
@@ -141,7 +144,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onAddAccount, onAddTransfer
                 transition={{ delay: i * 0.1 }}
                 key={acc.id}
                 onClick={() => setSelectedAccountId(selectedAccountId === acc.id ? null : acc.id)}
-                className={`glass-panel technical-border p-6 rounded-lg interactive-card group transition-all relative overflow-hidden card-container ${
+                className={`glass-panel technical-border p-6 rounded-lg group transition-all relative overflow-hidden card-container ${
                   selectedAccountId === acc.id ? 'border-brand-blue ring-1 ring-brand-blue/30' : ''
                 }`}
                 aria-label={`Conta ${acc.name}, Saldo: ${formatCurrency(acc.balance)}`}

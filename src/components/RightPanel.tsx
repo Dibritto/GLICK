@@ -23,7 +23,7 @@ const RightPanel: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <article className="p-3 rounded-md bg-brand-orange/5 border border-brand-orange/20 flex gap-3 interactive-card">
+          <article className="p-3 rounded-md bg-brand-orange/5 border border-brand-orange/20 flex gap-3">
             <AlertTriangle size={16} className="text-brand-orange flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="text-xs font-bold text-brand-orange">Sincronização Ativa</p>
@@ -50,7 +50,7 @@ const RightPanel: React.FC = () => {
           ) : pendingTransactions.length > 0 ? (
             <ul className="space-y-3" role="list">
               {pendingTransactions.map((item) => (
-                <li key={item.id} className="flex items-center justify-between group cursor-pointer p-2 rounded-lg hover:bg-white/5 transition-all interactive-card" aria-label={`${item.description}: ${formatCurrency(item.amount)} em ${formatDate(item.date)}`}>
+                <li key={item.id} className="flex items-center justify-between group cursor-pointer p-2 rounded-lg hover:bg-white/5 transition-all" aria-label={`${item.description}: ${formatCurrency(item.amount)} em ${formatDate(item.date)}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-1 h-8 rounded-full ${item.type === 'income' ? 'bg-brand-green' : 'bg-brand-red'}`} aria-hidden="true" />
                     <div>
@@ -65,7 +65,7 @@ const RightPanel: React.FC = () => {
               ))}
             </ul>
           ) : (
-            <div className="p-4 rounded-lg bg-brand-lead/5 border border-brand-lead/10 interactive-card">
+            <div className="p-4 rounded-lg bg-brand-lead/5 border border-brand-lead/10">
               <p className="text-[10px] text-gray-600 italic text-center">Nenhum compromisso pendente.</p>
             </div>
           )}
@@ -91,7 +91,7 @@ const RightPanel: React.FC = () => {
               {displayGoals.map((goal) => {
                 const progress = Math.round((Number(goal.current_amount) / Number(goal.target_amount)) * 100);
                 return (
-                  <li key={goal.id} className="p-2 rounded-lg hover:bg-white/5 transition-all interactive-card" aria-label={`Meta ${goal.name}: ${progress}% concluída`}>
+                  <li key={goal.id} className="p-2 rounded-lg hover:bg-white/5 transition-all" aria-label={`Meta ${goal.name}: ${progress}% concluída`}>
                     <div className="flex justify-between text-[10px] mb-1.5">
                       <span className="text-gray-300 font-bold">{goal.name}</span>
                       <span style={{ color: goal.color }} aria-hidden="true">{progress}%</span>

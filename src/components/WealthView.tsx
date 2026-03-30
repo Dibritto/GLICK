@@ -44,7 +44,7 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
             { label: 'Patrimônio Líquido', desc: 'Visão Consolidada' },
             { label: 'Análise de Evolução', desc: 'Crescimento Histórico' },
           ].map((feature, idx) => (
-            <li key={idx} className="glass-panel p-4 rounded-lg border border-brand-lead/20 text-left interactive-card" role="listitem">
+            <li key={idx} className="glass-panel p-4 rounded-lg border border-brand-lead/20 text-left" role="listitem">
               <p className="text-brand-green text-xs font-bold mb-1">{feature.label}</p>
               <p className="text-gray-500 text-[10px]">{feature.desc}</p>
             </li>
@@ -75,7 +75,7 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
       </header>
 
       <ul className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
-        <li className="glass-panel technical-border p-6 rounded-xl interactive-card" role="listitem">
+        <li className="glass-panel technical-border p-6 rounded-xl" role="listitem">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Patrimônio Líquido</p>
           <div className="fluid-value font-mono font-bold text-white" aria-label={`Patrimônio Líquido: ${formatCurrency(netWorth)}`}>
             <span className="currency-symbol" aria-hidden="true">R$</span>
@@ -87,7 +87,7 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
           </div>
         </li>
 
-        <li className="glass-panel technical-border p-6 rounded-xl interactive-card" role="listitem">
+        <li className="glass-panel technical-border p-6 rounded-xl" role="listitem">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Ativos Físicos</p>
           <div className="fluid-value font-mono font-bold text-white" aria-label={`Ativos Físicos: ${formatCurrency(0)}`}>
             <span className="currency-symbol" aria-hidden="true">R$</span>
@@ -99,7 +99,7 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
           </div>
         </li>
 
-        <li className="glass-panel technical-border p-6 rounded-xl interactive-card" role="listitem">
+        <li className="glass-panel technical-border p-6 rounded-xl" role="listitem">
           <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold">Liquidez Imediata</p>
           <div className="fluid-value font-mono font-bold text-white" aria-label={`Liquidez Imediata: ${formatCurrency(netWorth)}`}>
             <span className="currency-symbol" aria-hidden="true">R$</span>
@@ -112,7 +112,7 @@ const WealthView: React.FC<WealthViewProps> = ({ isInstalled = false, onNavigate
         </li>
       </ul>
 
-      <article className="glass-panel technical-border rounded-xl overflow-hidden interactive-card" aria-labelledby="assets-list-title">
+      <article className="glass-panel technical-border rounded-xl overflow-hidden" aria-labelledby="assets-list-title">
         <header className="p-4 border-b border-brand-lead/10 flex items-center justify-between bg-white/5">
           <h3 id="assets-list-title" className="text-xs font-bold uppercase tracking-widest text-gray-400">Meus Ativos</h3>
         </header>

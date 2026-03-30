@@ -36,7 +36,8 @@ const AuthView: React.FC<AuthViewProps> = () => {
       const data = await res.json();
 
       if (res.ok) {
-        login(data.token, data.user);
+        const responseData = data.success ? data.data : data;
+        login(responseData.token, responseData.user);
       } else {
         setError(data.error || 'Ocorreu um erro. Tente novamente.');
       }

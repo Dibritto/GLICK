@@ -190,7 +190,7 @@ const ForecastView: React.FC = () => {
 
       {/* Telemetry Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-blue/10 text-brand-blue rounded-lg">
               <Gauge size={20} />
@@ -203,7 +203,7 @@ const ForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-green/10 text-brand-green rounded-lg">
               <Shield size={20} />
@@ -216,7 +216,7 @@ const ForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4 interactive-card">
+        <div className="glass-panel technical-border p-6 rounded-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="p-2 bg-brand-orange/10 text-brand-orange rounded-lg">
               <TrendingUp size={20} />
@@ -231,7 +231,7 @@ const ForecastView: React.FC = () => {
       </div>
 
       {/* Projection Chart */}
-      <section className="glass-panel technical-border p-6 rounded-xl space-y-6 interactive-card">
+      <section className="glass-panel technical-border p-6 rounded-xl space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 size={18} className="text-brand-blue" />
@@ -290,7 +290,7 @@ const ForecastView: React.FC = () => {
           <div className="space-y-3">
             {recurringTransactions.length > 0 ? (
               recurringTransactions.map((item) => (
-                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-blue/30 transition-all interactive-card">
+                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-blue/30 transition-all">
                   <div className="flex items-center gap-4">
                     <div className={`p-2 rounded-lg ${item.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'}`}>
                       {item.type === 'income' ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
@@ -338,7 +338,7 @@ const ForecastView: React.FC = () => {
           <div className="space-y-3">
             {forecasts.length > 0 ? (
               forecasts.map((item) => (
-                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-orange/30 transition-all interactive-card">
+                <div key={item.id} className="glass-panel technical-border p-4 rounded-lg flex items-center justify-between group hover:border-brand-orange/30 transition-all">
                   <div className="flex items-center gap-4">
                     <div className={`p-2 rounded-lg ${item.type === 'income' ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'}`}>
                       <Activity size={16} />

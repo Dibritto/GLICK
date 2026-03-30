@@ -12,9 +12,9 @@ export interface Module {
   trial_ends_at?: string;
 }
 
-export async function getUserModules(userId: number): Promise<Module[]> {
-  const allModules = await db('modules').select('*');
-  const userModules = await db('user_modules')
+export async function getUserModules(userId: number, dbOrTrx: any = db): Promise<Module[]> {
+  const allModules = await dbOrTrx('modules').select('*');
+  const userModules = await dbOrTrx('user_modules')
     .where('user_id', userId)
     .select('*');
 

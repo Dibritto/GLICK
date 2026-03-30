@@ -42,8 +42,8 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   onAddTransaction,
   onEditTransaction
 }) => {
-  const { transactions: movements, derivedData, categories, isLoading, deleteTransaction, updateTransaction, reconcileTransaction, createTransaction } = useFinance();
-  const { projectedTransactions, allTransactionsSorted, totalIncome, totalExpense } = derivedData;
+  const { transactions: recentMovements, derivedData, categories, isLoading, deleteTransaction, updateTransaction, reconcileTransaction, createTransaction, apiAction } = useFinance();
+  const { projectedTransactions, allTransactionsSorted: recentTransactionsSorted, totalIncome, totalExpense } = derivedData;
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense' | 'transfer'>(initialTypeFilter as any);
   const [filterCategory, setFilterCategory] = useState('all');
@@ -53,6 +53,76 @@ const MovementsView: React.FC<MovementsViewProps> = ({
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
+
+  // Paginated state
+  const [paginatedTransactions, setPaginatedTransactions] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasFetchedPaginated, setHasFetchedPaginated] = useState(false);
+
+  useEffect(() => {
+    const fetchPaginated = async () => {
+      try {
+        setIsLoadingMore(true);
+        const res = await apiAction(`/api/transactions/paginated?page=${page}&limit=50`, 'GET');
+        if (res && res.transactions) {
+          if (page === 1) {
+            setPaginatedTransactions(res.transactions);
+          } else {
+            setPaginatedTransactions(prev => {
+              // Avoid duplicates
+              const existingIds = new Set(prev.map(t => t.id));
+              const newTxs = res.transactions.filter((t: any) => !existingIds.has(t.id));
+              return [...prev, ...newTxs];
+            });
+          }
+          setTotalPages(res.pagination.totalPages);
+          setHasFetchedPaginated(true);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar transações paginadas:', error);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    };
+    fetchPaginated();
+  }, [page, apiAction]);
+
+  // Sync paginated transactions with recent updates from context
+  useEffect(() => {
+    setPaginatedTransactions(prev => {
+      let hasChanges = false;
+      const updated = prev.map(pt => {
+        const recentMatch = recentTransactionsSorted.find(rt => rt.id === pt.id);
+        if (recentMatch && JSON.stringify(recentMatch) !== JSON.stringify(pt)) {
+          hasChanges = true;
+          return recentMatch;
+        }
+        return pt;
+      });
+      
+      // Check for new transactions in recentTransactionsSorted that aren't in paginatedTransactions
+      const newTxs = recentTransactionsSorted.filter(
+        rt => !String(rt.id).startsWith('projected-') && !prev.some(pt => pt.id === rt.id)
+      );
+      
+      if (newTxs.length > 0) {
+        hasChanges = true;
+        return [...newTxs, ...updated].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      }
+      
+      return hasChanges ? updated : prev;
+    });
+  }, [recentTransactionsSorted]);
+
+  // Merge paginated transactions with projected transactions
+  const allTransactionsSorted = useMemo(() => {
+    if (!hasFetchedPaginated) return recentTransactionsSorted;
+    
+    const merged = [...paginatedTransactions, ...projectedTransactions];
+    return merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [paginatedTransactions, projectedTransactions, recentTransactionsSorted, hasFetchedPaginated]);
 
   const handleDeleteClick = (id: string | number) => {
     const idStr = String(id);
@@ -69,6 +139,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
     
     try {
       await deleteTransaction(transactionToDelete);
+      setPaginatedTransactions(prev => prev.filter(t => t.id !== transactionToDelete));
       toast.success('Transação removida com sucesso');
     } catch (error: any) {
       toast.error(error.message || 'Erro ao deletar transação');
@@ -92,6 +163,8 @@ const MovementsView: React.FC<MovementsViewProps> = ({
 
     return matchesSearch && matchesType && matchesCategory && matchesMonth;
   });
+
+  console.log('[FRONTEND] MovementsView - allTransactionsSorted:', allTransactionsSorted.length, 'filteredMovements:', filteredMovements.length);
 
   // Extract unique months from transactions for the filter dropdown
   const availableMonths = useMemo(() => {
@@ -236,10 +309,11 @@ const MovementsView: React.FC<MovementsViewProps> = ({
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
               aria-label="Filtrar por mês"
+              icon={<Calendar size={12} />}
             >
-              <option value="all">Todo o Período</option>
+              <option value="all" className="bg-brand-gray-deep">Todo o Período</option>
               {availableMonths.map(month => (
-                <option key={month} value={month}>{formatMonthLabel(month)}</option>
+                <option key={month} value={month} className="bg-brand-gray-deep">{formatMonthLabel(month)}</option>
               ))}
             </Select>
           </div>
@@ -250,10 +324,11 @@ const MovementsView: React.FC<MovementsViewProps> = ({
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               aria-label="Filtrar por categoria"
+              icon={<Tag size={12} />}
             >
-              <option value="all">Todas Categorias</option>
+              <option value="all" className="bg-brand-gray-deep">Todas Categorias</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                <option key={cat.id} value={cat.name} className="bg-brand-gray-deep">{cat.name}</option>
               ))}
             </Select>
           </div>
@@ -402,6 +477,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                                     .catch((err: any) => toast.error(err.message || 'Erro ao confirmar projeção'));
                                 } else {
                                   updateTransaction(m.id, { ...m, status: 'confirmed' });
+                                  setPaginatedTransactions(prev => prev.map(t => t.id === m.id ? { ...t, status: 'confirmed' } : t));
                                 }
                               }}
                               className="text-[9px] uppercase tracking-widest px-2 py-0.5"
@@ -417,6 +493,7 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 reconcileTransaction(m.id);
+                                setPaginatedTransactions(prev => prev.map(t => t.id === m.id ? { ...t, status: 'reconciled' } : t));
                               }}
                               className="text-[9px] uppercase tracking-widest px-2 py-0.5"
                               aria-label="Conciliar transação confirmada"
@@ -428,17 +505,19 @@ const MovementsView: React.FC<MovementsViewProps> = ({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
+                          <Button 
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteClick(m.id);
                             }}
-                            className="p-2 text-gray-600 hover:text-brand-red transition-colors"
+                            variant="ghost"
+                            size="icon"
+                            className="p-2 text-gray-600 hover:text-brand-red hover:bg-brand-red/10 transition-colors"
                             title="Excluir transação"
                             aria-label={`Excluir transação ${m.description}`}
                           >
                             <Trash2 size={16} aria-hidden="true" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </motion.tr>
@@ -473,10 +552,24 @@ const MovementsView: React.FC<MovementsViewProps> = ({
             </Button>
           </div>
         )}
+        
+        {page < totalPages && (
+          <div className="p-4 flex justify-center border-t border-brand-lead">
+            <Button 
+              variant="outline" 
+              onClick={() => setPage(p => p + 1)}
+              disabled={isLoadingMore}
+              className="w-full max-w-xs uppercase tracking-widest text-xs"
+            >
+              {isLoadingMore ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+              {isLoadingMore ? 'Carregando...' : 'Carregar Mais'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Rodapé de Telemetria */}
-      <footer className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 glass-panel technical-border rounded-2xl interactive-card" aria-label="Resumo de telemetria financeira do período">
+      <footer className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 glass-panel technical-border rounded-2xl" aria-label="Resumo de telemetria financeira do período">
         <div className="flex gap-8">
           <div role="status">
             <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Total Entradas</p>

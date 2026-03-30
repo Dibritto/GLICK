@@ -47,7 +47,7 @@ const ModuleMarketplace: React.FC = () => {
             key={module.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`glass-panel technical-border p-6 rounded-xl flex flex-col h-full interactive-card ${
+            className={`glass-panel technical-border p-6 rounded-xl flex flex-col h-full ${
               module.status === 'locked' ? 'opacity-90' : 'border-brand-blue/30'
             }`}
           >

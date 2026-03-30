@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2, CreditCard } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2, CreditCard, Wallet } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   AreaChart, 
@@ -13,18 +13,6 @@ import {
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import Tooltip from './Tooltip';
-import ModuleMarketplace from './ModuleMarketplace';
-import ForecastView from './ForecastView';
-import MovementsView from './MovementsView';
-import AccountsView from './AccountsView';
-import CardsView from './CardsView';
-import GoalsView from './GoalsView';
-import CategoriesView from './CategoriesView';
-import ReportsView from './ReportsView';
-import InvestmentsView from './InvestmentsView';
-import SettingsView from './SettingsView';
-import WealthView from './WealthView';
-import { CryptoView } from './CryptoView';
 
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -47,8 +35,7 @@ interface MainConsoleProps {
   onNavigate?: (view: string) => void;
 }
 
-const MainConsole: React.FC<MainConsoleProps> = ({ 
-  activeView = 'dashboard',
+const DashboardView: React.FC<MainConsoleProps> = ({ 
   installedModules = ['core'],
   onOpenTransactionModal,
   onOpenAccountModal,
@@ -72,6 +59,7 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   const { 
     totalBalance, 
     reservedBalance,
+    investedBalance,
     committedBalance,
     totalCardDebt,
     netWorth,
@@ -89,41 +77,6 @@ const MainConsole: React.FC<MainConsoleProps> = ({
     confirmedTransactions
   } = derivedData;
 
-  if (activeView === 'marketplace') return <ModuleMarketplace />;
-  if (activeView === 'fluxo-caixa') return <MovementsView onAddTransaction={() => onOpenTransactionModal()} onEditTransaction={onEditTransaction} />;
-  if (activeView === 'contas') return <AccountsView onAddAccount={onOpenAccountModal} onAddTransfer={() => onOpenTransactionModal('transfer')} onEditAccount={onEditAccount} onEditTransaction={onEditTransaction} />;
-  if (activeView === 'cartoes') return <CardsView onAddCard={onOpenCardModal} onEditCard={onEditCard} />;
-  if (activeView === 'metas') return <GoalsView onAddGoal={onOpenGoalModal} onEditGoal={onEditGoal} onAddFunds={(goal) => onOpenGoalFundingModal('add', goal)} onWithdrawFunds={(goal) => onOpenGoalFundingModal('withdraw', goal)} />;
-  if (activeView === 'categorias') return <CategoriesView onAddCategory={onOpenCategoryModal} onEditCategory={onEditCategory} />;
-  if (activeView === 'relatorios') return <ReportsView />;
-  if (activeView === 'projecoes') return <ForecastView />;
-  if (activeView === 'crypto') return <CryptoView isInstalled={installedModules.includes('crypto')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
-  if (activeView === 'investimentos') return <InvestmentsView isInstalled={installedModules.includes('investments')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
-  if (activeView === 'patrimonio') return <WealthView isInstalled={installedModules.includes('wealth')} onNavigateToMarketplace={() => onNavigate?.('marketplace')} />;
-  if (activeView === 'configuracoes') return <SettingsView />;
-
-  if (activeView !== 'dashboard') {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-        <div className="p-4 bg-brand-blue/10 rounded-full text-brand-blue">
-          <Zap size={32} />
-        </div>
-        <h2 className="text-xl font-bold text-white uppercase italic font-serif">Módulo em Desenvolvimento</h2>
-        <p className="text-gray-500 text-sm max-w-xs">
-          Esta funcionalidade está sendo implementada. Em breve você terá acesso total à telemetria deste módulo.
-        </p>
-        <Button 
-          onClick={() => window.location.reload()}
-          variant="primary"
-          size="md"
-          className="uppercase tracking-widest font-bold"
-        >
-          Voltar ao Dashboard
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <main className="flex-1 p-4 md:p-8 space-y-8" aria-label="Painel de controle financeiro">
       {/* PAINEL 1 — ESTADOS DO DINHEIRO */}
@@ -133,52 +86,82 @@ const MainConsole: React.FC<MainConsoleProps> = ({
           <h2 id="money-states-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Estados do Dinheiro (Core Engine)</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6" role="list">
-          <article className="glass-panel technical-border p-5 md:p-6 rounded-lg interactive-card group card-container min-w-0" role="listitem" aria-labelledby="total-balance-label">
-            <p id="total-balance-label" className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-bold truncate">Saldo Total</p>
-            <div className="fluid-value font-mono font-bold text-white" aria-label={`R$ ${formatCurrency(totalBalance, false)}`}>
-              <span className="currency-symbol" aria-hidden="true">R$</span>
+        <div 
+          className="grid gap-4 md:gap-4" 
+          style={{ 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' 
+          }}
+          role="list"
+        >
+          <article className="glass-panel technical-border p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="total-balance-label">
+            <p id="total-balance-label" className="text-[9px] uppercase tracking-widest text-gray-500 mb-2 font-bold leading-tight">Saldo em Conta</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(totalBalance, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
               {formatCurrency(totalBalance, false)}
             </div>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <TrendingUp size={12} className="text-brand-green" aria-hidden="true" />
-              <span className="truncate">Soma de todas as contas</span>
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-500">
+              <Wallet size={10} className="text-brand-blue" aria-hidden="true" />
+              <span className="truncate">Disponível em contas</span>
             </div>
           </article>
 
-          <article className="glass-panel technical-border p-5 md:p-6 rounded-lg interactive-card group card-container min-w-0" role="listitem" aria-labelledby="committed-balance-label">
-            <p id="committed-balance-label" className="text-[10px] uppercase tracking-widest text-brand-red mb-2 font-bold">Comprometido</p>
-            <div className="fluid-value font-mono font-bold text-brand-red" aria-label={`R$ ${formatCurrency(committedBalance, false)}`}>
-              <span className="currency-symbol" aria-hidden="true">R$</span>
-              {formatCurrency(committedBalance, false)}
+          <article className="glass-panel technical-border p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="invested-balance-label">
+            <p id="invested-balance-label" className="text-[9px] uppercase tracking-widest text-brand-blue mb-2 font-bold leading-tight">Investido</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-brand-blue whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(investedBalance, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
+              {formatCurrency(investedBalance, false)}
             </div>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <CreditCard size={12} className="text-brand-red" aria-hidden="true" />
-              <span className="truncate">Faturas + Pendências</span>
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-500">
+              <TrendingUp size={10} className="text-brand-blue" aria-hidden="true" />
+              <span className="truncate">Criptos e Ações</span>
             </div>
           </article>
 
-          <article className="glass-panel technical-border p-5 md:p-6 rounded-lg interactive-card group card-container min-w-0" role="listitem" aria-labelledby="reserved-balance-label">
-            <p id="reserved-balance-label" className="text-[10px] uppercase tracking-widest text-brand-orange mb-2 font-bold">Reservado</p>
-            <div className="fluid-value font-mono font-bold text-brand-orange" aria-label={`R$ ${formatCurrency(reservedBalance, false)}`}>
-              <span className="currency-symbol" aria-hidden="true">R$</span>
+          <article className="glass-panel technical-border p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="reserved-balance-label">
+            <p id="reserved-balance-label" className="text-[9px] uppercase tracking-widest text-brand-orange mb-2 font-bold leading-tight">Reservado</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-brand-orange whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(reservedBalance, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
               {formatCurrency(reservedBalance, false)}
             </div>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-500">
-              <ShieldCheck size={12} className="text-brand-orange" aria-hidden="true" />
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-500">
+              <ShieldCheck size={10} className="text-brand-orange" aria-hidden="true" />
               <span className="truncate">Alocado em Metas</span>
             </div>
           </article>
 
-          <article className="bg-brand-green/5 border border-brand-green/30 p-5 md:p-6 rounded-lg shadow-[0_0_20px_rgba(46,204,113,0.05)] interactive-card group card-container min-w-0 hover:border-brand-green/50" role="listitem" aria-labelledby="free-capital-label">
-            <p id="free-capital-label" className="text-[10px] uppercase tracking-widest text-brand-green mb-2 font-bold">Capital Livre</p>
-            <div className="fluid-value font-mono font-bold text-brand-green" aria-label={`R$ ${formatCurrency(freeCapital, false)}`}>
-              <span className="currency-symbol" aria-hidden="true">R$</span>
+          <article className="glass-panel technical-border p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="committed-balance-label">
+            <p id="committed-balance-label" className="text-[9px] uppercase tracking-widest text-brand-red mb-2 font-bold leading-tight">Comprometido</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-brand-red whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(committedBalance, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
+              {formatCurrency(committedBalance, false)}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-500">
+              <CreditCard size={10} className="text-brand-red" aria-hidden="true" />
+              <span className="truncate">Faturas + Pendências</span>
+            </div>
+          </article>
+
+          <article className="bg-brand-green/5 border border-brand-green/30 p-4 md:p-5 rounded-lg shadow-[0_0_20px_rgba(46,204,113,0.05)] group card-container min-w-0 hover:border-brand-green/50 flex flex-col justify-between" role="listitem" aria-labelledby="free-capital-label">
+            <p id="free-capital-label" className="text-[9px] uppercase tracking-widest text-brand-green mb-2 font-bold leading-tight">Capital Livre</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-brand-green whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(freeCapital, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
               {formatCurrency(freeCapital, false)}
             </div>
-            <div className="mt-4 flex items-center gap-2 text-[10px] text-brand-green/70">
-              <Zap size={12} aria-hidden="true" />
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-brand-green/70">
+              <Zap size={10} aria-hidden="true" />
               <span className="truncate">Disponível para uso</span>
+            </div>
+          </article>
+
+          <article className="bg-white/5 border border-white/10 p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="net-worth-label">
+            <p id="net-worth-label" className="text-[9px] uppercase tracking-widest text-gray-400 mb-2 font-bold leading-tight">Patrimônio Líquido</p>
+            <div className="text-lg md:text-xl font-mono font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(netWorth, false)}`}>
+              <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
+              {formatCurrency(netWorth, false)}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-[9px] text-gray-500">
+              <Activity size={10} className="text-brand-blue" aria-hidden="true" />
+              <span className="truncate">Total acumulado</span>
             </div>
           </article>
         </div>
@@ -248,38 +231,38 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <Zap size={18} className="text-brand-blue" aria-hidden="true" />
             <h2 id="velocity-autonomy-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Velocidade & Autonomia</h2>
           </div>
-          <div className="glass-panel technical-border p-6 rounded-lg grid grid-cols-2 gap-6 interactive-card">
-            <div className="space-y-2">
+          <div className="glass-panel technical-border p-6 rounded-lg grid gap-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <div className="space-y-3">
               <div className="flex justify-between items-end">
                 <p className="text-[10px] uppercase tracking-widest text-gray-500" id="money-velocity-label">Velocidade do Dinheiro</p>
-                <p className="text-lg font-mono font-bold text-white" aria-labelledby="money-velocity-label">{moneyVelocity}</p>
+                <p className="text-xl font-mono font-bold text-white" aria-labelledby="money-velocity-label">{moneyVelocity}</p>
               </div>
-              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min(Number(moneyVelocity) * 100, 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby="money-velocity-label">
+              <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min(Number(moneyVelocity) * 100, 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby="money-velocity-label">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(Number(moneyVelocity) * 100, 100)}%` }}
                   className={`h-full ${Number(moneyVelocity) > 0.8 ? 'bg-brand-red' : 'bg-brand-blue'}`}
                 />
               </div>
-              <p className="text-[9px] text-gray-600 italic">Taxa de evasão de capital vs receita.</p>
+              <p className="text-[10px] text-gray-600 italic leading-relaxed">Taxa de evasão de capital vs receita mensal.</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between items-end">
                 <p className="text-[10px] uppercase tracking-widest text-gray-500" id="financial-autonomy-label">Autonomia Financeira</p>
-                <p className="text-lg font-mono font-bold text-brand-green" aria-labelledby="financial-autonomy-label">{financialAutonomy} Dias</p>
+                <p className="text-xl font-mono font-bold text-brand-green" aria-labelledby="financial-autonomy-label">{financialAutonomy} Dias</p>
               </div>
-              <div className="h-1.5 w-full bg-brand-lead/20 rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min((financialAutonomy / 365) * 100, 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby="financial-autonomy-label">
+              <div className="h-2 w-full bg-brand-lead/20 rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min((financialAutonomy / 365) * 100, 100)} aria-valuemin={0} aria-valuemax={100} aria-labelledby="financial-autonomy-label">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min((financialAutonomy / 365) * 100, 100)}%` }}
                   className="h-full bg-brand-green"
                 />
               </div>
-              <p className="text-[9px] text-gray-600 italic">Dias de sobrevivência sem novas receitas.</p>
+              <p className="text-[10px] text-gray-600 italic leading-relaxed">Dias de sobrevivência baseados no saldo e gasto médio.</p>
             </div>
           </div>
 
-          <div className="glass-panel technical-border p-6 rounded-lg space-y-4 interactive-card" role="status" aria-labelledby="projected-balance-label">
+          <div className="glass-panel technical-border p-6 rounded-lg space-y-4" role="status" aria-labelledby="projected-balance-label">
             <div className="flex items-center justify-between">
               <p id="projected-balance-label" className="text-[10px] uppercase tracking-widest text-gray-500">Projeção de Saldo Final</p>
               <Tooltip 
@@ -303,21 +286,25 @@ const MainConsole: React.FC<MainConsoleProps> = ({
             <ShieldCheck size={18} className="text-brand-blue" aria-hidden="true" />
             <h2 id="glick-methodology-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Metodologia GLICK (Ideal)</h2>
           </div>
-          <div className="glass-panel technical-border p-6 rounded-lg space-y-4 interactive-card">
-            <div className="grid grid-cols-2 gap-4" role="list">
-              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 interactive-card" role="listitem">
+          <div className="glass-panel technical-border p-6 rounded-lg space-y-4">
+            <div 
+              className="grid gap-4" 
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}
+              role="list"
+            >
+              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 transition-colors hover:border-brand-lead/40" role="listitem">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Capital Livre (40%)</p>
                 <p className="text-sm font-mono font-bold text-brand-blue">{formatCurrency(derivedData.monthlyIncome * 0.4)}</p>
               </article>
-              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 interactive-card" role="listitem">
+              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 transition-colors hover:border-brand-lead/40" role="listitem">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Reserva (30%)</p>
                 <p className="text-sm font-mono font-bold text-brand-green">{formatCurrency(derivedData.monthlyIncome * 0.3)}</p>
               </article>
-              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 interactive-card" role="listitem">
+              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 transition-colors hover:border-brand-lead/40" role="listitem">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Invest. (20%)</p>
                 <p className="text-sm font-mono font-bold text-brand-orange">{formatCurrency(derivedData.monthlyIncome * 0.2)}</p>
               </article>
-              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 interactive-card" role="listitem">
+              <article className="p-3 bg-brand-lead/10 rounded-lg border border-brand-lead/20 transition-colors hover:border-brand-lead/40" role="listitem">
                 <p className="text-[10px] uppercase text-gray-500 mb-1">Lazer (10%)</p>
                 <p className="text-sm font-mono font-bold text-brand-red">{formatCurrency(derivedData.monthlyIncome * 0.1)}</p>
               </article>
@@ -373,13 +360,18 @@ const MainConsole: React.FC<MainConsoleProps> = ({
                   <tr 
                     key={t.id} 
                     onClick={() => onEditTransaction(t)}
-                    className="hover:bg-brand-lead/10 transition-colors group cursor-pointer"
+                    className="hover:bg-brand-lead/10 transition-colors group cursor-pointer relative"
                     aria-label={`${t.description}: ${formatCurrency(t.amount)} em ${formatDate(t.date)}`}
                   >
                     <td className="px-6 py-4 text-xs font-mono text-gray-400">
                       {formatDate(t.date)}
                     </td>
-                    <td className="px-6 py-4 text-xs font-bold text-gray-200">{t.description}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-gray-200">
+                      <div className="flex items-center gap-2">
+                        {t.description}
+                        <Activity size={10} className="text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <Badge variant="neutral">{t.category}</Badge>
                     </td>
@@ -406,7 +398,11 @@ const MainConsole: React.FC<MainConsoleProps> = ({
       </section>
 
       {/* PAINEL 4 — VELOCIDADE DO DINHEIRO */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12" aria-label="Métricas de velocidade e autonomia">
+      <section 
+        className="grid gap-6 pb-12" 
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}
+        aria-label="Métricas de velocidade e autonomia"
+      >
         <article className="glass-panel technical-border p-6 rounded-xl flex items-center gap-6" role="status" aria-labelledby="daily-spending-label">
           <div className="w-16 h-16 rounded-full border-4 border-brand-blue/20 flex items-center justify-center relative" aria-hidden="true">
             <div className="absolute inset-0 border-4 border-brand-blue border-t-transparent rounded-full animate-spin-slow" />
@@ -434,4 +430,4 @@ const MainConsole: React.FC<MainConsoleProps> = ({
   );
 };
 
-export default MainConsole;
+export default DashboardView;

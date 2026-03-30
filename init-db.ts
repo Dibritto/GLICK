@@ -1,4 +1,4 @@
-import db from './src/lib/db.js';
+import db from './src/lib/db.ts';
 
 async function init() {
   console.log('🛠️ Iniciando estruturação do banco de dados...');
@@ -90,9 +90,43 @@ async function init() {
         table.integer('destination_account_id').unsigned().references('id').inTable('accounts'); // Para transferências
         table.integer('card_id').unsigned().references('id').inTable('cards').nullable();
         table.integer('goal_id').unsigned().references('id').inTable('goals').nullable();
+        table.integer('installments').defaultTo(1);
+        table.string('installment_id').nullable();
         table.timestamps(true, true);
+        
+        // Indexes for performance
+        table.index('user_id');
+        table.index('account_id');
+        table.index('date');
+        table.index('type');
       });
       console.log('✅ Tabela [transactions] criada.');
+    } else {
+      // Adicionar colunas se não existirem
+      const hasInstallments = await db.schema.hasColumn('transactions', 'installments');
+      if (!hasInstallments) {
+        await db.schema.alterTable('transactions', table => {
+          table.integer('installments').defaultTo(1);
+          table.string('installment_id').nullable();
+        });
+        console.log('✅ Colunas [installments] e [installment_id] adicionadas à tabela [transactions].');
+      }
+
+      // Adicionar índices se não existirem (tentativa segura)
+      try {
+        const [indexes] = await db.raw("SHOW INDEX FROM transactions WHERE Key_name = 'transactions_user_id_index'");
+        if (indexes.length === 0) {
+          await db.schema.alterTable('transactions', table => {
+            table.index('user_id');
+            table.index('account_id');
+            table.index('date');
+            table.index('type');
+          });
+          console.log('✅ Índices de performance adicionados à tabela [transactions].');
+        }
+      } catch (e) {
+        console.log('⚠️ Não foi possível verificar/adicionar índices em transactions:', e);
+      }
     }
 
     // Tabela de Categorias
@@ -162,6 +196,7 @@ async function init() {
         table.increments('id').primary();
         table.integer('user_id').unsigned().references('id').inTable('users');
         table.integer('asset_id').unsigned().references('id').inTable('assets');
+        table.integer('transaction_id').unsigned().nullable().references('id').inTable('transactions').onDelete('SET NULL');
         table.string('type').notNullable(); // buy, sell, transfer
         table.decimal('quantity', 20, 8).notNullable();
         table.decimal('price_at_time', 20, 8).notNullable();
@@ -178,6 +213,7 @@ async function init() {
         table.increments('id').primary();
         table.integer('user_id').unsigned().references('id').inTable('users');
         table.integer('asset_id').unsigned().references('id').inTable('assets');
+        table.integer('transaction_id').unsigned().nullable().references('id').inTable('transactions').onDelete('SET NULL');
         table.string('type').notNullable(); // buy, sell, yield, dividend
         table.decimal('quantity', 20, 8).notNullable();
         table.decimal('price_at_time', 20, 8).notNullable();
@@ -224,6 +260,10 @@ async function init() {
     }
 
     // --- SEEDS DE SISTEMA (Apenas se as tabelas estiverem vazias) ---
+    
+    // Limpar categorias globais antigas para garantir isolamento total
+    await db('categories').whereNull('user_id').delete();
+
     const modulesCount = await db('modules').count('id as count').first();
     if (modulesCount?.count === 0) {
       await db('modules').insert([
@@ -235,9 +275,11 @@ async function init() {
     }
 
     console.log('🚀 Banco de dados pronto para uso!');
+    await db.destroy();
     process.exit(0);
   } catch (error) {
     console.error('❌ Erro ao inicializar banco:', error);
+    await db.destroy();
     process.exit(1);
   }
 }

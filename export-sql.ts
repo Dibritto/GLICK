@@ -1,4 +1,4 @@
-import db from './src/lib/db.js';
+import db from './src/lib/db.ts';
 import fs from 'fs';
 
 async function generateSQL() {

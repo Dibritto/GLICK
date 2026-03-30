@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { Account, Transaction, Category, Goal, Card, DerivedData } from '../types';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
@@ -59,71 +60,54 @@ interface FinanceContextType {
 
   // Crypto
   createCryptoTransaction: (data: any) => Promise<void>;
+  updateCryptoAsset: (id: number, data: any) => Promise<void>;
+  deleteCryptoAsset: (id: number) => Promise<void>;
+  deleteCryptoTransaction: (id: number) => Promise<void>;
+  updateCryptoTransaction: (id: number, data: any) => Promise<void>;
 
   // Investments
   createInvestmentTransaction: (data: any) => Promise<void>;
+  updateInvestmentAsset: (id: number, data: any) => Promise<void>;
+  deleteInvestmentAsset: (id: number) => Promise<void>;
+  deleteInvestmentTransaction: (id: number) => Promise<void>;
+  updateInvestmentTransaction: (id: number, data: any) => Promise<void>;
+  apiAction: (url: string, method: string, body?: any) => Promise<any>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [modules, setModules] = useState<any[]>([]);
-  const [recurringTransactions, setRecurringTransactions] = useState<any[]>([]);
-  const [forecasts, setForecasts] = useState<any[]>([]);
-  const [cryptoAssets, setCryptoAssets] = useState<any[]>([]);
-  const [cryptoTransactions, setCryptoTransactions] = useState<any[]>([]);
-  const [investmentAssets, setInvestmentAssets] = useState<any[]>([]);
-  const [investmentTransactions, setInvestmentTransactions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const fetchApi = async (url: string) => {
+    if (!token) throw new Error('No token');
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Fetch failed for ${url}`);
+    const json = await res.json();
+    return json.success !== undefined ? json.data : json;
+  };
+
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({ queryKey: ['accounts'], queryFn: () => fetchApi('/api/accounts'), enabled: !!token });
+  const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({ queryKey: ['transactions'], queryFn: () => fetchApi('/api/transactions'), enabled: !!token });
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({ queryKey: ['categories'], queryFn: () => fetchApi('/api/categories'), enabled: !!token });
+  const { data: goals = [], isLoading: isLoadingGoals } = useQuery({ queryKey: ['goals'], queryFn: () => fetchApi('/api/goals'), enabled: !!token });
+  const { data: cards = [], isLoading: isLoadingCards } = useQuery({ queryKey: ['cards'], queryFn: () => fetchApi('/api/cards'), enabled: !!token });
+  const { data: coreStats = null, isLoading: isLoadingCoreStats } = useQuery({ queryKey: ['coreStats'], queryFn: () => fetchApi('/api/finance/core-stats'), enabled: !!token });
+  const { data: chartDataApi = null, isLoading: isLoadingChartData } = useQuery({ queryKey: ['chartData'], queryFn: () => fetchApi('/api/finance/chart-data'), enabled: !!token });
+  const { data: modules = [], isLoading: isLoadingModules } = useQuery({ queryKey: ['modules'], queryFn: () => fetchApi('/api/modules'), enabled: !!token });
+  const { data: recurringTransactions = [], isLoading: isLoadingRecurring } = useQuery({ queryKey: ['recurringTransactions'], queryFn: () => fetchApi('/api/recurring-transactions'), enabled: !!token });
+  const { data: forecasts = [], isLoading: isLoadingForecasts } = useQuery({ queryKey: ['forecasts'], queryFn: () => fetchApi('/api/forecasts'), enabled: !!token });
+  const { data: cryptoAssets = [], isLoading: isLoadingCryptoAssets } = useQuery({ queryKey: ['cryptoAssets'], queryFn: () => fetchApi('/api/crypto/assets'), enabled: !!token });
+  const { data: cryptoTransactions = [], isLoading: isLoadingCryptoTx } = useQuery({ queryKey: ['cryptoTransactions'], queryFn: () => fetchApi('/api/crypto/transactions'), enabled: !!token });
+  const { data: investmentAssets = [], isLoading: isLoadingInvAssets } = useQuery({ queryKey: ['investmentAssets'], queryFn: () => fetchApi('/api/investments/assets'), enabled: !!token });
+  const { data: investmentTransactions = [], isLoading: isLoadingInvTx } = useQuery({ queryKey: ['investmentTransactions'], queryFn: () => fetchApi('/api/investments/transactions'), enabled: !!token });
+
+  const isLoading = isLoadingAccounts || isLoadingTransactions || isLoadingCategories || isLoadingGoals || isLoadingCards || isLoadingCoreStats || isLoadingChartData || isLoadingModules || isLoadingRecurring || isLoadingForecasts || isLoadingCryptoAssets || isLoadingCryptoTx || isLoadingInvAssets || isLoadingInvTx;
 
   const refreshData = useCallback(async () => {
-    if (!token) return;
-    setIsLoading(true);
-    try {
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const [accRes, transRes, catRes, goalsRes, cardsRes, coreRes, modRes, recRes, foreRes, cryptoAssetsRes, cryptoTransRes, invAssetsRes, invTransRes] = await Promise.all([
-        fetch('/api/accounts', { headers }),
-        fetch('/api/transactions', { headers }),
-        fetch('/api/categories', { headers }),
-        fetch('/api/goals', { headers }),
-        fetch('/api/cards', { headers }),
-        fetch('/api/finance/core-stats', { headers }),
-        fetch('/api/modules', { headers }),
-        fetch('/api/recurring-transactions', { headers }),
-        fetch('/api/forecasts', { headers }),
-        fetch('/api/crypto/assets', { headers }),
-        fetch('/api/crypto/transactions', { headers }),
-        fetch('/api/investments/assets', { headers }),
-        fetch('/api/investments/transactions', { headers })
-      ]);
-
-      if (accRes.ok) setAccounts(await accRes.json());
-      if (transRes.ok) setTransactions(await transRes.json());
-      if (catRes.ok) setCategories(await catRes.json());
-      if (goalsRes.ok) setGoals(await goalsRes.json());
-      if (cardsRes.ok) setCards(await cardsRes.json());
-      if (coreRes.ok) setCoreStats(await coreRes.json());
-      if (modRes.ok) setModules(await modRes.json());
-      if (recRes.ok) setRecurringTransactions(await recRes.json());
-      if (foreRes.ok) setForecasts(await foreRes.json());
-      if (cryptoAssetsRes.ok) setCryptoAssets(await cryptoAssetsRes.json());
-      if (cryptoTransRes.ok) setCryptoTransactions(await cryptoTransRes.json());
-      if (invAssetsRes.ok) setInvestmentAssets(await invAssetsRes.json());
-      if (invTransRes.ok) setInvestmentTransactions(await invTransRes.json());
-    } catch (error) {
-      console.error('Erro ao sincronizar dados financeiros:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
-
-  const [coreStats, setCoreStats] = useState<any>(null);
+    await queryClient.invalidateQueries();
+  }, [queryClient]);
 
   // Função para forçar a data a ser interpretada localmente, ignorando o fuso horário
   const getLocalDate = (dateString: string) => {
@@ -139,6 +123,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     goals,
     cards,
     coreStats,
+    chartDataApi,
     cryptoAssets,
     cryptoTransactions,
     investmentAssets,
@@ -162,143 +147,171 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       
       // Retornar o resultado para atualizações otimistas ou uso imediato
-      return await res.json();
+      const json = await res.json();
+      return json.success !== undefined ? json.data : json;
     } catch (error) {
       console.error(`Erro na operação ${method} em ${url}:`, error);
       throw error;
     }
   }, [token]);
 
-  // Debounced refreshData para evitar múltiplas chamadas simultâneas
-  const debouncedRefreshData = useCallback(() => {
-    let timeoutId: NodeJS.Timeout;
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        refreshData();
-      }, 300); // Aguarda 300ms após a última chamada
-    };
-  }, [refreshData])();
+  const invalidate = (keys: string[]) => {
+    keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+  };
 
   const deleteTransaction = async (id: string) => {
     await apiAction(`/api/transactions/${id}`, 'DELETE');
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    debouncedRefreshData();
+    invalidate(['transactions', 'accounts', 'coreStats']);
   };
 
   const reconcileTransaction = async (id: string) => {
     await apiAction(`/api/transactions/${id}/reconcile`, 'PATCH');
-    setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: 'reconciled' } : t));
-    debouncedRefreshData();
+    invalidate(['transactions', 'accounts', 'coreStats']);
   };
   
   const updateTransaction = async (id: string, data: any) => {
     await apiAction(`/api/transactions/${id}`, 'PUT', data);
-    debouncedRefreshData();
+    invalidate(['transactions', 'accounts', 'coreStats']);
   };
   
   const createTransaction = async (data: any) => {
     await apiAction('/api/transactions', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['transactions', 'accounts', 'coreStats']);
   };
   
   const createAccount = async (data: any) => {
     await apiAction('/api/accounts', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['accounts', 'coreStats']);
   };
   
   const updateAccount = async (id: number, data: any) => {
     await apiAction(`/api/accounts/${id}`, 'PUT', data);
-    debouncedRefreshData();
+    invalidate(['accounts', 'coreStats']);
   };
   
   const deleteAccount = async (id: number) => {
     await apiAction(`/api/accounts/${id}`, 'DELETE');
-    setAccounts(prev => prev.filter(a => a.id !== id));
-    debouncedRefreshData();
+    invalidate(['accounts', 'coreStats', 'transactions']);
   };
 
   const recalculateAccountBalance = async (id: number) => {
     await apiAction(`/api/accounts/${id}/recalculate`, 'POST');
-    debouncedRefreshData();
+    invalidate(['accounts', 'coreStats']);
   };
   
   const createGoal = async (data: any) => {
     await apiAction('/api/goals', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['goals']);
   };
   
   const updateGoal = async (id: number, data: any) => {
     await apiAction(`/api/goals/${id}`, 'PUT', data);
-    debouncedRefreshData();
+    invalidate(['goals']);
   };
   
   const deleteGoal = async (id: number) => {
     await apiAction(`/api/goals/${id}`, 'DELETE');
-    setGoals(prev => prev.filter(g => g.id !== id));
-    debouncedRefreshData();
+    invalidate(['goals']);
   };
   
   const createCard = async (data: any) => {
     await apiAction('/api/cards', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['cards']);
   };
   
   const updateCard = async (id: number, data: any) => {
     await apiAction(`/api/cards/${id}`, 'PUT', data);
-    debouncedRefreshData();
+    invalidate(['cards']);
   };
   
   const deleteCard = async (id: number) => {
     await apiAction(`/api/cards/${id}`, 'DELETE');
-    setCards(prev => prev.filter(c => c.id !== id));
-    debouncedRefreshData();
+    invalidate(['cards']);
   };
   
   const createCategory = async (data: any) => {
     await apiAction('/api/categories', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['categories']);
   };
   
   const updateCategory = async (id: number, data: any) => {
     await apiAction(`/api/categories/${id}`, 'PUT', data);
-    debouncedRefreshData();
+    invalidate(['categories']);
   };
   
   const deleteCategory = async (id: number) => {
     await apiAction(`/api/categories/${id}`, 'DELETE');
-    setCategories(prev => prev.filter(c => c.id !== id));
-    debouncedRefreshData();
+    invalidate(['categories']);
   };
 
   const createRecurringTransaction = async (data: any) => {
     await apiAction('/api/recurring-transactions', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['recurringTransactions']);
   };
 
   const deleteRecurringTransaction = async (id: string) => {
     await apiAction(`/api/recurring-transactions/${id}`, 'DELETE');
-    debouncedRefreshData();
+    invalidate(['recurringTransactions']);
   };
 
   const createForecast = async (data: any) => {
     await apiAction('/api/forecasts', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['forecasts']);
   };
 
   const deleteForecast = async (id: string) => {
     await apiAction(`/api/forecasts/${id}`, 'DELETE');
-    debouncedRefreshData();
+    invalidate(['forecasts']);
   };
 
   const createCryptoTransaction = async (data: any) => {
     await apiAction('/api/crypto/transactions', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['cryptoTransactions', 'cryptoAssets', 'coreStats']);
+  };
+
+  const updateCryptoAsset = async (id: number, data: any) => {
+    await apiAction(`/api/crypto/assets/${id}`, 'PUT', data);
+    invalidate(['cryptoAssets', 'coreStats']);
+  };
+
+  const deleteCryptoAsset = async (id: number) => {
+    await apiAction(`/api/crypto/assets/${id}`, 'DELETE');
+    invalidate(['cryptoAssets', 'cryptoTransactions', 'coreStats']);
+  };
+
+  const deleteCryptoTransaction = async (id: number) => {
+    await apiAction(`/api/crypto/transactions/${id}`, 'DELETE');
+    invalidate(['cryptoTransactions', 'cryptoAssets', 'coreStats']);
+  };
+
+  const updateCryptoTransaction = async (id: number, data: any) => {
+    await apiAction(`/api/crypto/transactions/${id}`, 'PUT', data);
+    invalidate(['cryptoTransactions', 'cryptoAssets', 'coreStats']);
   };
 
   const createInvestmentTransaction = async (data: any) => {
     await apiAction('/api/investments/transactions', 'POST', data);
-    debouncedRefreshData();
+    invalidate(['investmentTransactions', 'investmentAssets', 'coreStats']);
+  };
+
+  const updateInvestmentAsset = async (id: number, data: any) => {
+    await apiAction(`/api/investments/assets/${id}`, 'PUT', data);
+    invalidate(['investmentAssets', 'coreStats']);
+  };
+
+  const deleteInvestmentAsset = async (id: number) => {
+    await apiAction(`/api/investments/assets/${id}`, 'DELETE');
+    invalidate(['investmentAssets', 'investmentTransactions', 'coreStats']);
+  };
+
+  const deleteInvestmentTransaction = async (id: number) => {
+    await apiAction(`/api/investments/transactions/${id}`, 'DELETE');
+    invalidate(['investmentTransactions', 'investmentAssets', 'coreStats']);
+  };
+
+  const updateInvestmentTransaction = async (id: number, data: any) => {
+    await apiAction(`/api/investments/transactions/${id}`, 'PUT', data);
+    invalidate(['investmentTransactions', 'investmentAssets', 'coreStats']);
   };
 
   const activateModule = async (slug: string, isTrial: boolean = true) => {
@@ -346,18 +359,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  useEffect(() => {
-    if (token) {
-      refreshData();
-    } else {
-      setAccounts([]);
-      setTransactions([]);
-      setCategories([]);
-      setGoals([]);
-      setCards([]);
-    }
-  }, [token, refreshData]);
-
   return (
     <FinanceContext.Provider value={{ 
       accounts, 
@@ -395,7 +396,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateCategory,
       deleteCategory,
       createCryptoTransaction,
-      createInvestmentTransaction
+      updateCryptoAsset,
+      deleteCryptoAsset,
+      deleteCryptoTransaction,
+      updateCryptoTransaction,
+      createInvestmentTransaction,
+      updateInvestmentAsset,
+      deleteInvestmentAsset,
+      deleteInvestmentTransaction,
+      updateInvestmentTransaction,
+      apiAction
     }}>
       {children}
     </FinanceContext.Provider>

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFinance } from '../context/FinanceContext';
+import { useAuth } from '../context/AuthContext';
+import { useMarketPrice } from '../hooks/useMarketPrice';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Bitcoin, Activity, Lock, Zap, ChevronRight, Search, X } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, RefreshCw, Bitcoin, Activity, Lock, Zap, ChevronRight, Search, X, Trash2, Edit2, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -9,15 +11,73 @@ import { Badge } from './ui/Badge';
 import { Select } from './ui/Select';
 import Modal from './Modal';
 
+const AssetRow = ({ asset, onEdit }: { asset: any, onEdit: (asset: any) => void }) => {
+  const { price, isLoading } = useMarketPrice(asset.symbol);
+  const currentPrice = price || asset.current_price || 0;
+  const averagePrice = asset.average_price || 0;
+  const totalValue = asset.quantity * currentPrice;
+  const totalInvested = asset.quantity * averagePrice;
+  const gain = totalValue - totalInvested;
+  const gainPercent = totalInvested > 0 ? (gain / totalInvested) * 100 : 0;
+  
+  return (
+    <li className="glass-panel p-4 rounded-lg border border-white/5 flex flex-col gap-4" role="listitem">
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-white uppercase tracking-widest text-lg">{asset.symbol}</p>
+            {isLoading && <RefreshCw size={12} className="animate-spin text-brand-orange" />}
+          </div>
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider">{asset.name}</p>
+        </div>
+        <Button variant="ghost" onClick={() => onEdit(asset)} className="text-[10px] h-6 px-2">Editar</Button>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4 bg-black/20 p-3 rounded-lg">
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Preço Médio</p>
+          <p className="font-mono text-sm text-gray-300">{formatCurrency(averagePrice)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Preço Atual</p>
+          <p className="font-mono text-sm text-white">{formatCurrency(currentPrice)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Saldo ({asset.quantity})</p>
+          <p className="font-mono text-sm text-white">{formatCurrency(totalValue)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Lucro / Prejuízo</p>
+          <p className={`font-mono text-sm font-bold flex items-center gap-1 ${gain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {gain >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            {formatCurrency(Math.abs(gain))} ({gainPercent > 0 ? '+' : ''}{gainPercent.toFixed(2)}%)
+          </p>
+        </div>
+      </div>
+    </li>
+  );
+};
+
+interface CryptoViewProps {
+  isInstalled?: boolean;
+  onNavigateToMarketplace?: () => void;
+}
+
 interface CryptoViewProps {
   isInstalled?: boolean;
   onNavigateToMarketplace?: () => void;
 }
 
 export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onNavigateToMarketplace }) => {
-  const { derivedData, createCryptoTransaction } = useFinance();
+  const { derivedData, createCryptoTransaction, updateCryptoAsset, deleteCryptoAsset, deleteCryptoTransaction, updateCryptoTransaction } = useFinance();
   const { cryptoAssets, cryptoTransactions, accounts } = derivedData;
+  const { token } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditTxModalOpen, setIsEditTxModalOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<any | null>(null);
+  const [editingTx, setEditingTx] = useState<any | null>(null);
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
   const [formData, setFormData] = useState({
     symbol: '',
     name: '',
@@ -28,6 +88,51 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
     account_id: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  const [txFormData, setTxFormData] = useState({
+    quantity: '',
+    price_at_time: '',
+    date: ''
+  });
+
+  // Debounce para busca de preço
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.symbol && formData.symbol.length >= 2) {
+        fetchPrice(formData.symbol, formData.date);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.symbol, formData.date]);
+
+  const fetchPrice = async (symbol: string, date?: string) => {
+    if (!symbol || !token) return;
+    setIsFetchingPrice(true);
+    try {
+      const url = new URL(`/api/market/price/${symbol}`, window.location.origin);
+      if (date) {
+        url.searchParams.append('date', date);
+      }
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.price) {
+          setFormData(prev => ({ 
+            ...prev, 
+            price_at_time: data.price.toString(),
+            name: data.name || prev.name
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar preço:', error);
+    } finally {
+      setIsFetchingPrice(false);
+    }
+  };
 
   if (!isInstalled) {
     return (
@@ -53,7 +158,11 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
           </p>
         </header>
 
-        <ul className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl" role="list">
+        <ul 
+          className="grid gap-4 w-full max-w-2xl" 
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+          role="list"
+        >
           {[
             { label: 'Cotações Real-time', desc: 'Integração com Exchanges' },
             { label: 'Análise de P&L', desc: 'Lucro e Prejuízo' },
@@ -101,6 +210,25 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
       account_id: '',
       date: new Date().toISOString().split('T')[0]
     });
+  };
+
+  const handleEditTxSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    await updateCryptoTransaction(editingTx.id, {
+      quantity: Number(txFormData.quantity),
+      price_at_time: Number(txFormData.price_at_time),
+      date: txFormData.date
+    });
+    setIsEditTxModalOpen(false);
+    setEditingTx(null);
+  };
+
+  const handleSymbolBlur = async () => {
+    // Mantido para compatibilidade, mas a lógica agora está no useEffect com debounce
+    if (formData.symbol && formData.symbol.length >= 2) {
+      fetchPrice(formData.symbol, formData.date);
+    }
   };
 
   return (
@@ -156,7 +284,7 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
       </nav>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <article className="glass-panel p-6 rounded-xl border border-white/5 interactive-card" aria-labelledby="total-portfolio-label">
+        <article className="glass-panel p-6 rounded-xl border border-white/5" aria-labelledby="total-portfolio-label">
           <p id="total-portfolio-label" className="text-sm text-gray-400 mb-2 uppercase tracking-widest font-bold">Valor Total do Portfólio</p>
           <p className="text-3xl font-mono font-bold text-white" aria-label={`Valor Total: ${formatCurrency(totalCryptoValue)}`}>
             {formatCurrency(totalCryptoValue)}
@@ -169,20 +297,14 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
           <Activity size={18} className="text-brand-blue" aria-hidden="true" />
           Seus Ativos
         </h2>
-        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" role="list" aria-labelledby="assets-title">
+        <ul 
+          className="grid gap-4" 
+          style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}
+          role="list" 
+          aria-labelledby="assets-title"
+        >
           {cryptoAssets.map(asset => (
-            <li key={asset.id} className="glass-panel p-4 rounded-lg border border-white/5 flex justify-between items-center interactive-card" role="listitem">
-              <div>
-                <p className="font-bold text-white uppercase tracking-widest">{asset.symbol}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{asset.name}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-white">{asset.quantity} {asset.symbol}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider" aria-label={`Valor atual: ${formatCurrency(asset.quantity * asset.current_price)}`}>
-                  {formatCurrency(asset.quantity * asset.current_price)}
-                </p>
-              </div>
-            </li>
+            <AssetRow key={asset.id} asset={asset} onEdit={(a) => { setEditingAsset(a); setIsEditModalOpen(true); }} />
           ))}
           {cryptoAssets.length === 0 && (
             <li className="col-span-full text-center py-8 text-gray-500 uppercase text-[10px] tracking-widest" role="listitem">
@@ -205,6 +327,7 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
                 <th className="p-4" scope="col">Quantidade</th>
                 <th className="p-4" scope="col">Preço</th>
                 <th className="p-4" scope="col">Total</th>
+                <th className="p-4 text-right" scope="col">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -220,11 +343,43 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
                   <td className="p-4 font-mono">{tx.quantity}</td>
                   <td className="p-4 font-mono">{formatCurrency(tx.price_at_time)}</td>
                   <td className="p-4 font-mono">{formatCurrency(tx.quantity * tx.price_at_time)}</td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => {
+                          setEditingTx(tx);
+                          setTxFormData({
+                            quantity: tx.quantity.toString(),
+                            price_at_time: tx.price_at_time.toString(),
+                            date: tx.date.split('T')[0]
+                          });
+                          setIsEditTxModalOpen(true);
+                        }}
+                        className="text-gray-400 hover:text-white p-2 h-auto"
+                        title="Editar Transação"
+                      >
+                        <Edit2 size={14} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => {
+                          if (confirm('Deseja excluir esta transação? O saldo do ativo será recalculado.')) {
+                            deleteCryptoTransaction(tx.id);
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-400 p-2 h-auto"
+                        title="Excluir Transação"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {cryptoTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500 uppercase text-[10px] tracking-widest">
+                  <td colSpan={7} className="p-8 text-center text-gray-500 uppercase text-[10px] tracking-widest">
                     Nenhuma transação registrada.
                   </td>
                 </tr>
@@ -241,14 +396,36 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Input 
-              id="symbol"
-              label="Símbolo (ex: BTC)"
-              type="text" 
-              required
-              value={formData.symbol}
-              onChange={e => setFormData({...formData, symbol: e.target.value.toUpperCase()})}
-            />
+            <div className="relative">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Input 
+                    id="symbol"
+                    label="Símbolo (ex: BTC)"
+                    type="text" 
+                    required
+                    value={formData.symbol}
+                    onChange={e => setFormData({...formData, symbol: e.target.value.toUpperCase()})}
+                    onBlur={handleSymbolBlur}
+                  />
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSymbolBlur}
+                  disabled={!formData.symbol || isFetchingPrice}
+                  className="mb-[2px] px-3 py-2 h-[42px]"
+                  title="Buscar preço atual"
+                >
+                  <RefreshCw size={16} className={isFetchingPrice ? "animate-spin" : ""} />
+                </Button>
+              </div>
+              {isFetchingPrice && (
+                <span className="absolute right-14 top-9 text-[10px] text-brand-orange flex items-center gap-1">
+                  Buscando...
+                </span>
+              )}
+            </div>
             <Input 
               id="name"
               label="Nome (ex: Bitcoin)"
@@ -298,6 +475,7 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
               required
               value={formData.date}
               onChange={e => setFormData({...formData, date: e.target.value})}
+              onBlur={handleSymbolBlur}
             />
             <Select
               id="account"
@@ -330,6 +508,87 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
             >
               Salvar
             </Button>
+          </footer>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Editar Ativo"
+      >
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          await updateCryptoAsset(editingAsset.id, {
+            name: editingAsset.name,
+            symbol: editingAsset.symbol,
+            current_price: Number(editingAsset.current_price)
+          });
+          setIsEditModalOpen(false);
+        }} className="space-y-4">
+          <Input label="Nome" value={editingAsset?.name || ''} onChange={e => setEditingAsset({...editingAsset, name: e.target.value})} />
+          <Input label="Símbolo" value={editingAsset?.symbol || ''} onChange={e => setEditingAsset({...editingAsset, symbol: e.target.value})} />
+          <Input label="Preço Atual" type="number" step="any" value={editingAsset?.current_price || ''} onChange={e => setEditingAsset({...editingAsset, current_price: e.target.value})} />
+          <footer className="pt-4 flex gap-3">
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={async () => {
+                if (confirm('Deseja realmente excluir este ativo e todas as suas transações?')) {
+                  await deleteCryptoAsset(editingAsset.id);
+                  setIsEditModalOpen(false);
+                }
+              }} 
+              className="flex-1 py-3 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+            >
+              Excluir
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3">Cancelar</Button>
+            <Button type="submit" variant="primary" className="flex-1 py-3">Salvar</Button>
+          </footer>
+        </form>
+      </Modal>
+      <Modal
+        isOpen={isEditTxModalOpen}
+        onClose={() => setIsEditTxModalOpen(false)}
+        title="Editar Transação"
+      >
+        <form onSubmit={handleEditTxSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              id="edit-quantity"
+              label="Quantidade"
+              type="number" 
+              step="any"
+              required
+              value={txFormData.quantity}
+              onChange={e => setTxFormData({...txFormData, quantity: e.target.value})}
+            />
+            <Input 
+              id="edit-price"
+              label="Preço Unitário (R$)"
+              type="number" 
+              step="any"
+              required
+              value={txFormData.price_at_time}
+              onChange={e => setTxFormData({...txFormData, price_at_time: e.target.value})}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <Input 
+              id="edit-date"
+              label="Data"
+              type="date" 
+              required
+              value={txFormData.date}
+              onChange={e => setTxFormData({...txFormData, date: e.target.value})}
+            />
+          </div>
+
+          <footer className="pt-4 flex gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsEditTxModalOpen(false)} className="flex-1 py-3">Cancelar</Button>
+            <Button type="submit" variant="primary" className="flex-1 py-3">Salvar</Button>
           </footer>
         </form>
       </Modal>

@@ -16,6 +16,7 @@ import { formatCurrency } from '../utils/formatters';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Category } from '../types';
+import IconRenderer from './IconRenderer';
 
 interface CategoriesViewProps {
   onAddCategory?: () => void;
@@ -29,7 +30,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
 
   const filteredCategories = categories.filter(cat => {
-    const matchesSearch = cat.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (cat.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || cat.type === filterType;
     return matchesSearch && matchesType;
   });
@@ -114,7 +115,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                 key={cat.id}
                 role="listitem"
                 aria-label={`Categoria: ${cat.name} (${cat.type === 'income' ? 'Receita' : 'Despesa'})`}
-                className="glass-panel technical-border p-5 rounded-lg group hover:border-brand-blue/30 hover:shadow-[0_0_20px_rgba(44,199,255,0.05)] transition-all cursor-pointer relative overflow-hidden card-container interactive-card"
+                className="glass-panel technical-border p-5 rounded-lg group hover:border-brand-blue/30 hover:shadow-[0_0_20px_rgba(44,199,255,0.05)] transition-all cursor-pointer relative overflow-hidden card-container"
               >
                 <div 
                   onClick={() => onEditCategory?.(cat)}
@@ -132,7 +133,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-white/5 border border-white/10 shrink-0 group-hover:border-brand-blue/30 transition-all"
                         aria-hidden="true"
                       >
-                        {cat.icon}
+                        <IconRenderer iconName={cat.icon} size={20} color={cat.color} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -199,7 +200,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
               <button 
                 onClick={onAddCategory}
                 aria-label="Adicionar nova categoria"
-                className="w-full h-full border border-dashed border-brand-lead/20 rounded-lg p-5 flex items-center justify-center gap-3 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group interactive-card"
+                className="w-full h-full border border-dashed border-brand-lead/20 rounded-lg p-5 flex items-center justify-center gap-3 hover:border-brand-blue/30 hover:bg-brand-blue/5 transition-all group"
               >
                 <Plus size={18} className="text-gray-500 group-hover:text-brand-blue transition-colors" aria-hidden="true" />
                 <span className="text-xs font-bold text-gray-500 group-hover:text-brand-blue transition-colors uppercase tracking-widest">Nova Categoria</span>
@@ -212,7 +213,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
       {/* Insights de Categorias */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-8" aria-labelledby="category-insights-title">
         <h3 id="category-insights-title" className="sr-only">Insights de Categorias</h3>
-        <article className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group interactive-card">
+        <article className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-blue/10 transition-all" aria-hidden="true" />
           
           <div className="flex items-center justify-between">
@@ -233,7 +234,7 @@ const CategoriesView: React.FC<CategoriesViewProps> = ({ onAddCategory, onEditCa
           </div>
         </article>
 
-        <article className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group interactive-card">
+        <article className="glass-panel technical-border p-8 rounded-lg space-y-6 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-brand-red/10 transition-all" aria-hidden="true" />
 
           <div className="flex items-center justify-between">

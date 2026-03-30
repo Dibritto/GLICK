@@ -81,6 +81,7 @@ export interface CryptoTransaction {
   price_at_time: number;
   fee: number;
   date: string;
+  account_id?: number;
 }
 
 export interface InvestmentAsset {
@@ -104,6 +105,7 @@ export interface InvestmentTransaction {
   price_at_time: number;
   fee: number;
   date: string;
+  account_id?: number;
 }
 
 export interface DerivedData {
@@ -121,7 +123,7 @@ export interface DerivedData {
   projectedBalance: number;
   pendingIncome: number;
   pendingExpense: number;
-  moneyVelocity: string;
+  moneyVelocity: string | number;
   retentionRate: number;
   dailyAverageSpending: number;
   dailyAverageSpend: number;
@@ -139,6 +141,7 @@ export interface DerivedData {
   completedGoalsCount: number;
   totalIncome: number;
   totalExpense: number;
+  investedBalance: number;
   incomeChange: number;
   expenseChange: number;
   cardsWithDynamicBill: Card[];
@@ -146,12 +149,21 @@ export interface DerivedData {
   categoriesWithSpent: (Category & { spent: number })[];
   coreStats?: {
     totalBalance: number;
-    reserved: number;
-    committed: number;
-    free: number;
-    dailyVelocity: number;
-    autonomyDays: number;
-    projection: number;
+    reservedBalance: number;
+    investedBalance: number;
+    committedBalance: number;
+    freeBalance: number;
+    dailyAverageSpend: number;
+    financialAutonomy: number;
+    projectedBalance: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    moneyVelocity: number;
+    retentionRate: number;
+    predictedIncome: number;
+    predictedExpense: number;
+    prevMonthIncome: number;
+    prevMonthExpense: number;
   };
   cryptoAssets: CryptoAsset[];
   cryptoTransactions: CryptoTransaction[];
