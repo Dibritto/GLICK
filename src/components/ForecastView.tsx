@@ -245,8 +245,8 @@ const ForecastView: React.FC = () => {
           </div>
         </div>
 
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[300px] min-h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100} initialDimension={{ width: 300, height: 300 }}>
             <AreaChart data={projectionData}>
               <defs>
                 <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">

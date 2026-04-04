@@ -14,7 +14,7 @@ export const getCoreStats = async (req: AuthRequest, res: Response) => {
   try {
     const [coreStatsEngine, cardsResult, goalsResult, incomeResult, expenseResult] = await Promise.all([
       calculateCoreStats(userId),
-      db('cards').where('user_id', userId).sum('current_bill as totalCreditUsed').sum('limit_amount as totalCreditLimit').first(),
+      db('cards').where('user_id', userId).sum('current_bill as totalCreditUsed').sum('limit as totalCreditLimit').first(),
       db('goals').where('user_id', userId).sum('target_amount as totalGoalsTarget').sum('current_amount as totalGoalsCurrent').first(),
       db('transactions')
         .where('user_id', userId)

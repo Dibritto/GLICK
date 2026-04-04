@@ -22,9 +22,10 @@ import { Card } from '../types';
 interface CardsViewProps {
   onAddCard?: () => void;
   onEditCard?: (card: Card) => void;
+  onOpenCardBills?: (card: Card) => void;
 }
 
-const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
+const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard, onOpenCardBills }) => {
   const { isLoading, derivedData } = useFinance();
   const { totalCardLimit, totalCardUsed, cardsWithDynamicBill } = derivedData;
   const [searchTerm, setSearchTerm] = useState('');
@@ -186,13 +187,22 @@ const CardsView: React.FC<CardsViewProps> = ({ onAddCard, onEditCard }) => {
                       <AlertCircle size={10} aria-hidden="true" />
                       <span>Fatura em aberto</span>
                     </div>
-                    <button 
-                      onClick={() => onEditCard?.(card)}
-                      aria-label={`Ver detalhes da fatura do cartão ${card.name}`}
-                      className="text-[9px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
-                    >
-                      Ver Detalhes <ChevronRight size={10} aria-hidden="true" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onOpenCardBills?.(card); }}
+                        aria-label={`Ver histórico de faturas do cartão ${card.name}`}
+                        className="text-[9px] uppercase font-bold text-gray-400 hover:text-white hover:underline flex items-center gap-1"
+                      >
+                        Histórico
+                      </button>
+                      <button 
+                        onClick={() => onEditCard?.(card)}
+                        aria-label={`Ver detalhes da fatura do cartão ${card.name}`}
+                        className="text-[9px] uppercase font-bold text-brand-blue hover:underline flex items-center gap-1"
+                      >
+                        Ver Detalhes <ChevronRight size={10} aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.li>

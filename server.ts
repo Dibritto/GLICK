@@ -1,7 +1,10 @@
 import express, { Request, Response, NextFunction } from 'express';
+console.log('SERVER STARTING UP...');
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -20,6 +23,7 @@ import financeRoutes from './src/routes/financeRoutes.ts';
 import recurringTransactionRoutes from './src/routes/recurringTransactionRoutes.ts';
 import forecastRoutes from './src/routes/forecastRoutes.ts';
 import marketRoutes from './src/routes/marketRoutes.ts';
+import debtRoutes from './src/routes/debtRoutes.ts';
 
 import { authenticateToken } from './src/middleware/authMiddleware.ts';
 
@@ -28,9 +32,40 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { cryptoPriceService } from './src/services/cryptoPriceService.ts';
+
+// Global io instance
+export let io: Server;
+
 async function startServer() {
   const app = express();
+  const httpServer = createServer(app);
   const PORT = 3000;
+
+  io = new Server(httpServer, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
+
+  // Initialize crypto price service
+  cryptoPriceService.initialize(io);
+
+  io.on('connection', (socket) => {
+    console.log('🔌 Novo cliente conectado via WebSocket:', socket.id);
+    cryptoPriceService.handleSocketConnection(socket);
+    
+    // Join room based on user ID for targeted events
+    socket.on('join-user-room', (userId) => {
+      socket.join(`user_${userId}`);
+      console.log(`Usuário ${userId} entrou na sala user_${userId}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('🔌 Cliente desconectado:', socket.id);
+    });
+  });
 
   app.use(cors());
   app.use(express.json());
@@ -38,7 +73,7 @@ async function startServer() {
   // --- API ROUTES (AUTH) ---
   app.use('/api/auth', authRoutes);
 
-  // --- API ROUTES DELEGATION (PROTECTED) ---
+// --- API ROUTES DELEGATION (PROTECTED) ---
   app.use('/api/user', authenticateToken, userRoutes);
   app.use('/api/transactions', authenticateToken, transactionRoutes);
   app.use('/api/accounts', authenticateToken, accountRoutes);
@@ -51,7 +86,14 @@ async function startServer() {
   app.use('/api/finance', authenticateToken, financeRoutes);
   app.use('/api/recurring-transactions', authenticateToken, recurringTransactionRoutes);
   app.use('/api/forecasts', authenticateToken, forecastRoutes);
-  app.use('/api/market', authenticateToken, marketRoutes);
+  app.use('/api/market', marketRoutes);
+  app.use('/api/debts', authenticateToken, debtRoutes);
+
+  // TEST ROUTE
+  app.get('/api/test-route', (req, res) => {
+    console.log('Test route hit!');
+    res.json({ message: 'Server is working!' });
+  });
 
   // 404 for API routes
   app.all('/api/*', (req, res) => {
@@ -78,12 +120,13 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📡 Pronto para conectar ao banco SQL na Hostinger`);
   });

@@ -117,6 +117,24 @@ export const resetData = async (req: AuthRequest, res: Response) => {
       await trx('categories').where('user_id', userId).delete();
       
       await trx('accounts').where('user_id', userId).update({ balance: 0 });
+
+      // Re-inserir categorias padrão para o usuário não ficar num limbo
+      const DEFAULT_CATEGORIES = [
+        { name: 'Alimentação', type: 'expense', icon: 'Utensils', color: '#FF4B4B' },
+        { name: 'Transporte', type: 'expense', icon: 'Car', color: '#4B7BFF' },
+        { name: 'Lazer', type: 'expense', icon: 'Gamepad2', color: '#FFB84B' },
+        { name: 'Saúde', type: 'expense', icon: 'Heart', color: '#FF4B91' },
+        { name: 'Educação', type: 'expense', icon: 'GraduationCap', color: '#914BFF' },
+        { name: 'Moradia', type: 'expense', icon: 'Home', color: '#4BFFB8' },
+        { name: 'Salário', type: 'income', icon: 'Wallet', color: '#4BFF4B' },
+        { name: 'Investimentos', type: 'income', icon: 'TrendingUp', color: '#B8FF4B' },
+        { name: 'Outros', type: 'expense', icon: 'Tag', color: '#A0A0A0' }
+      ];
+      const categoriesToInsert = DEFAULT_CATEGORIES.map(cat => ({
+        ...cat,
+        user_id: userId
+      }));
+      await trx('categories').insert(categoriesToInsert);
     });
     return sendSuccess(res, { message: 'Dados resetados com sucesso' });
   } catch (error) {

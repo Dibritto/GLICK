@@ -2,12 +2,13 @@ import React from 'react';
 import { Calendar, Bell, Target, ChevronRight, AlertTriangle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useFinance } from '../context/FinanceContext';
+import { useAlerts } from '../hooks/useAlerts';
 import { Badge } from './ui/Badge';
-
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 const RightPanel: React.FC = () => {
   const { transactions, derivedData, isLoading } = useFinance();
+  const alerts = useAlerts();
   const { goalsWithDynamicAmount: goals } = derivedData;
   
   const pendingTransactions = transactions.filter(t => t.status === 'pending').slice(0, 3);
@@ -19,17 +20,31 @@ const RightPanel: React.FC = () => {
       <section className="p-6 space-y-4" aria-labelledby="alerts-title">
         <div className="flex items-center justify-between">
           <h3 id="alerts-title" className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Alertas Críticos</h3>
-          <Badge variant="warning" aria-label="1 alerta ativo">01</Badge>
+          {alerts.length > 0 && <Badge variant="warning" aria-label={`${alerts.length} alerta(s) ativo(s)`}>{alerts.length.toString().padStart(2, '0')}</Badge>}
         </div>
 
         <div className="space-y-2">
-          <article className="p-3 rounded-md bg-brand-orange/5 border border-brand-orange/20 flex gap-3">
-            <AlertTriangle size={16} className="text-brand-orange flex-shrink-0" aria-hidden="true" />
-            <div>
-              <p className="text-xs font-bold text-brand-orange">Sincronização Ativa</p>
-              <p className="text-[10px] text-gray-400 mt-1">Monitorando fluxos de caixa em tempo real.</p>
-            </div>
-          </article>
+          {alerts.length > 0 ? (
+            alerts.map(alert => (
+              <article key={alert.id} className={`p-3 rounded-md border flex gap-3 ${alert.type === 'CRITICAL' ? 'bg-brand-red/5 border-brand-red/20' : 'bg-brand-orange/5 border-brand-orange/20'}`}>
+                <AlertTriangle size={16} className={alert.type === 'CRITICAL' ? 'text-brand-red' : 'text-brand-orange'} aria-hidden="true" />
+                <div>
+                  <p className={`text-xs font-bold ${alert.type === 'CRITICAL' ? 'text-brand-red' : 'text-brand-orange'}`}>{alert.title}</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{alert.message}</p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article className="p-3 rounded-md bg-brand-green/5 border border-brand-green/20 flex gap-3">
+              <div className="w-4 h-4 rounded-full bg-brand-green flex-shrink-0 flex items-center justify-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-black" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-brand-green">Tudo em Ordem</p>
+                <p className="text-[10px] text-gray-400 mt-1">Nenhum alerta crítico pendente.</p>
+              </div>
+            </article>
+          )}
         </div>
       </section>
 

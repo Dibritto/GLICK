@@ -8,14 +8,16 @@ import TransactionModal from './components/TransactionModal';
 import AccountModal from './components/AccountModal';
 import GoalModal from './components/GoalModal';
 import CardModal from './components/CardModal';
+import CardBillsModal from './components/CardBillsModal';
 import CategoryModal from './components/CategoryModal';
 import GoalFundingModal from './components/GoalFundingModal';
+import DebtModal from './components/DebtModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthView from './components/AuthView';
 import { Toaster } from 'sonner';
 import { useAuth } from './context/AuthContext';
 import { useFinance } from './context/FinanceContext';
-import { Menu, Loader2, Zap } from 'lucide-react';
+import { Menu, Loader2, Zap, PanelLeft, PanelRight } from 'lucide-react';
 import { Button } from './components/ui/Button';
 
 // Lazy load views for code splitting
@@ -28,6 +30,7 @@ const CardsView = lazy(() => import('./components/CardsView'));
 const GoalsView = lazy(() => import('./components/GoalsView'));
 const CategoriesView = lazy(() => import('./components/CategoriesView'));
 const ReportsView = lazy(() => import('./components/ReportsView'));
+const DebtsView = lazy(() => import('./components/DebtsView'));
 const InvestmentsView = lazy(() => import('./components/InvestmentsView'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
 const WealthView = lazy(() => import('./components/WealthView'));
@@ -76,7 +79,7 @@ function AppContent() {
   const activeView = location.pathname === '/' ? 'dashboard' : location.pathname.substring(1);
   
   type ModalState = {
-    type: 'transaction' | 'account' | 'goal' | 'card' | 'category' | 'goalFunding' | null;
+    type: 'transaction' | 'account' | 'goal' | 'card' | 'cardBills' | 'category' | 'goalFunding' | 'debt' | null;
     data?: any;
     extra?: any;
   };
@@ -138,7 +141,7 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <Toaster position="top-right" theme="dark" richColors closeButton />
-      <div className="flex flex-col lg:flex-row h-screen w-full bg-brand-graphite overflow-hidden selection:bg-brand-blue/30 selection:text-brand-blue">
+      <div className="flex flex-col lg:flex-row h-screen w-full bg-brand-graphite overflow-hidden selection:bg-brand-blue/30 selection:text-brand-blue relative">
       {/* Overlay para Mobile Sidebar */}
       {isSidebarOpen && (
         <div 
@@ -146,6 +149,30 @@ function AppContent() {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+
+      {/* Toggle Left Sidebar Floating Button */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`hidden lg:flex fixed top-1/2 -translate-y-1/2 z-50 p-2 rounded-r-lg transition-all shadow-lg items-center justify-center border border-l-0 border-brand-lead/30
+          ${isSidebarOpen ? 'left-64 bg-brand-graphite text-gray-400 hover:text-white' : 'left-0 bg-brand-graphite text-gray-400 hover:text-white'}`}
+        style={{ transitionDuration: '300ms' }}
+        title={isSidebarOpen ? "Ocultar Menu" : "Mostrar Menu"}
+        aria-label={isSidebarOpen ? "Ocultar Menu Lateral" : "Mostrar Menu Lateral"}
+      >
+        <PanelLeft size={16} />
+      </button>
+
+      {/* Toggle Right Panel Floating Button */}
+      <button
+        onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+        className={`hidden xl:flex fixed top-1/2 -translate-y-1/2 z-50 p-2 rounded-l-lg transition-all shadow-lg items-center justify-center border border-r-0 border-brand-lead/30
+          ${isRightPanelOpen ? 'right-80 bg-brand-graphite text-gray-400 hover:text-white' : 'right-0 bg-brand-graphite text-gray-400 hover:text-white'}`}
+        style={{ transitionDuration: '300ms' }}
+        title={isRightPanelOpen ? "Ocultar Painel Lateral" : "Mostrar Painel Lateral"}
+        aria-label={isRightPanelOpen ? "Ocultar Painel Lateral" : "Mostrar Painel Lateral"}
+      >
+        <PanelRight size={16} />
+      </button>
 
       {/* Coluna Esquerda: Navegação e KPIs */}
       <div className={`
@@ -178,10 +205,6 @@ function AppContent() {
           <div className="flex-1 min-w-0 overflow-visible">
             <TopBar 
               data={derivedData} 
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              isSidebarOpen={isSidebarOpen}
-              onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
-              isRightPanelOpen={isRightPanelOpen}
               onRefresh={refreshData}
               isRefreshing={isFinanceLoading}
             />
@@ -198,9 +221,10 @@ function AppContent() {
                 <Route path="/marketplace" element={<ModuleMarketplace />} />
                 <Route path="/fluxo-caixa" element={<MovementsView onAddTransaction={() => viewProps.onOpenTransactionModal()} onEditTransaction={handleEditTransaction} />} />
                 <Route path="/contas" element={<AccountsView onAddAccount={viewProps.onOpenAccountModal} onAddTransfer={() => viewProps.onOpenTransactionModal('transfer')} onEditAccount={handleEditAccount} onEditTransaction={handleEditTransaction} />} />
-                <Route path="/cartoes" element={<CardsView onAddCard={viewProps.onOpenCardModal} onEditCard={handleEditCard} />} />
+                <Route path="/cartoes" element={<CardsView onAddCard={viewProps.onOpenCardModal} onEditCard={handleEditCard} onOpenCardBills={(card) => setModal({ type: 'cardBills', data: card })} />} />
                 <Route path="/metas" element={<GoalsView onAddGoal={viewProps.onOpenGoalModal} onEditGoal={handleEditGoal} onAddFunds={(goal) => viewProps.onOpenGoalFundingModal('add', goal)} onWithdrawFunds={(goal) => viewProps.onOpenGoalFundingModal('withdraw', goal)} />} />
                 <Route path="/categorias" element={<CategoriesView onAddCategory={viewProps.onOpenCategoryModal} onEditCategory={handleEditCategory} />} />
+                <Route path="/dividas" element={<DebtsView />} />
                 <Route path="/relatorios" element={<ReportsView />} />
                 <Route path="/projecoes" element={<ForecastView />} />
                 <Route path="/crypto" element={<CryptoView isInstalled={installedModules.includes('crypto')} onNavigateToMarketplace={() => navigate('/marketplace')} />} />
@@ -227,6 +251,7 @@ function AppContent() {
         onAddIncome={() => setModal({ type: 'transaction', extra: { transactionType: 'income', lockType: false } })}
         onAddTransfer={() => setModal({ type: 'transaction', extra: { transactionType: 'transfer' } })}
         onAddGoal={() => setModal({ type: 'goal' })}
+        onAddDebt={() => setModal({ type: 'debt' })}
         onNavigateReports={() => navigate('/relatorios')}
       />
 
@@ -258,6 +283,12 @@ function AppContent() {
         editingCard={modal.data}
       />
 
+      <CardBillsModal
+        isOpen={modal.type === 'cardBills'}
+        onClose={() => setModal({ type: null })}
+        card={modal.data}
+      />
+
       <CategoryModal 
         isOpen={modal.type === 'category'}
         onClose={() => setModal({ type: null })}
@@ -269,6 +300,11 @@ function AppContent() {
         onClose={() => setModal({ type: null })}
         goal={modal.data}
         type={modal.extra?.fundingType || 'add'}
+      />
+
+      <DebtModal 
+        isOpen={modal.type === 'debt'}
+        onClose={() => setModal({ type: null })}
       />
     </div>
     </ErrorBoundary>

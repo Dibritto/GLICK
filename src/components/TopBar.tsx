@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, TrendingUp, TrendingDown, Target, Wallet, PanelRight, PanelLeft, RefreshCcw } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Target, Wallet, RefreshCcw } from 'lucide-react';
 import Tooltip from './Tooltip';
 import { formatCurrency } from '../utils/formatters';
 import { Button } from './ui/Button';
@@ -12,41 +12,18 @@ interface TopBarProps {
     projectedBalance: number;
     freeCapital: number;
   };
-  onToggleSidebar: () => void;
-  isSidebarOpen: boolean;
-  onToggleRightPanel: () => void;
-  isRightPanelOpen: boolean;
   onRefresh: () => void;
   isRefreshing?: boolean;
 }
 
 const TopBar: React.FC<TopBarProps> = ({ 
   data, 
-  onToggleSidebar, 
-  isSidebarOpen, 
-  onToggleRightPanel, 
-  isRightPanelOpen,
   onRefresh,
   isRefreshing = false
 }) => {
   return (
     <header className="h-11 flex-shrink-0 bg-brand-graphite border-b border-brand-lead/20 relative z-50 overflow-visible" role="banner">
       <div className="flex items-center h-full px-2 gap-2 md:gap-4 overflow-visible">
-        {/* Toggle Sidebar Esquerda */}
-        <Button 
-          onClick={onToggleSidebar}
-          variant={isSidebarOpen ? "primary" : "ghost"}
-          size="icon"
-          className={`hidden lg:flex p-1.5 rounded-md transition-all ${isSidebarOpen ? 'bg-brand-blue text-brand-graphite' : 'bg-brand-lead/30 text-gray-400 hover:text-white'}`}
-          title={isSidebarOpen ? "Ocultar Menu" : "Mostrar Menu"}
-          aria-label={isSidebarOpen ? "Ocultar Menu Lateral" : "Mostrar Menu Lateral"}
-          aria-expanded={isSidebarOpen}
-        >
-          <PanelLeft size={16} aria-hidden="true" />
-        </Button>
-
-        <div className="hidden lg:block h-4 w-[1px] bg-brand-lead/50 shrink-0" aria-hidden="true" />
-
         <div className="flex items-center gap-1.5 md:gap-3 overflow-visible" role="status" aria-live="polite">
           <Tooltip text="Soma de todos os saldos em contas e investimentos." position="bottom">
             <div className="flex items-center gap-1 whitespace-nowrap cursor-help group" aria-label={`Saldo Total: ${formatCurrency(data.totalBalance)}`}>
@@ -109,17 +86,6 @@ const TopBar: React.FC<TopBarProps> = ({
             <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse" aria-hidden="true" />
             <span className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter">LIVE TELEMETRY</span>
           </div>
-          <Button 
-            onClick={onToggleRightPanel}
-            variant={isRightPanelOpen ? "primary" : "ghost"}
-            size="icon"
-            className={`p-1.5 rounded-md transition-all ${isRightPanelOpen ? 'bg-brand-blue text-brand-graphite' : 'bg-brand-lead/30 text-gray-400 hover:text-white'}`}
-            title={isRightPanelOpen ? "Ocultar Painel Lateral" : "Mostrar Painel Lateral"}
-            aria-label={isRightPanelOpen ? "Ocultar Painel Lateral" : "Mostrar Painel Lateral"}
-            aria-expanded={isRightPanelOpen}
-          >
-            <PanelRight size={16} aria-hidden="true" />
-          </Button>
         </div>
       </div>
     </header>

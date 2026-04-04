@@ -53,9 +53,52 @@ async function init() {
         table.integer('closing_day').notNullable();
         table.integer('due_day').notNullable();
         table.string('color').defaultTo('#2CC7FF');
+        table.decimal('interest_rate', 5, 4).defaultTo(0.1200); // Juros rotativos (12% a.m.)
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [cards] criada.');
+    } else {
+      const hasInterestRate = await db.schema.hasColumn('cards', 'interest_rate');
+      if (!hasInterestRate) {
+        await db.schema.alterTable('cards', table => {
+          table.decimal('interest_rate', 5, 4).defaultTo(0.1200);
+        });
+        console.log('✅ Coluna [interest_rate] adicionada à tabela [cards].');
+      }
+    }
+
+    // Tabela de Faturas de Cartão (Histórico e Juros Rotativos)
+    if (!await db.schema.hasTable('card_bills')) {
+      await db.schema.createTable('card_bills', table => {
+        table.increments('id').primary();
+        table.integer('card_id').unsigned().references('id').inTable('cards').onDelete('CASCADE');
+        table.string('month_year').notNullable(); // YYYY-MM
+        table.decimal('closing_amount', 15, 2).notNullable();
+        table.decimal('paid_amount', 15, 2).defaultTo(0);
+        table.decimal('remaining_balance', 15, 2).defaultTo(0);
+        table.decimal('interest_rate', 5, 4).defaultTo(0.1200);
+        table.decimal('interest_accrued', 15, 2).defaultTo(0);
+        table.string('status').defaultTo('open'); // open, closed, overdue, partial
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [card_bills] criada.');
+    }
+
+    // Tabela de Dívidas (Empréstimos/Financiamentos)
+    if (!await db.schema.hasTable('debts')) {
+      await db.schema.createTable('debts', table => {
+        table.increments('id').primary();
+        table.integer('user_id').unsigned().references('id').inTable('users').onDelete('CASCADE');
+        table.string('name').notNullable();
+        table.decimal('principal', 15, 2).notNullable();
+        table.decimal('monthly_rate', 5, 4).notNullable(); // Ex: 0.015 para 1.5% a.m.
+        table.integer('total_months').notNullable();
+        table.string('payment_method').notNullable(); // 'SAC' ou 'Price'
+        table.string('status').defaultTo('active'); // active, paid, overdue
+        table.date('start_date').notNullable();
+        table.timestamps(true, true);
+      });
+      console.log('✅ Tabela [debts] criada.');
     }
 
     // Tabela de Metas (DEVE VIR ANTES DE TRANSACTIONS)
@@ -237,11 +280,24 @@ async function init() {
         table.integer('day_of_month').defaultTo(1);
         table.string('description');
         table.date('start_date').notNullable();
+        table.date('next_date').nullable(); // Próxima execução
         table.date('end_date').nullable();
         table.boolean('active').defaultTo(true);
         table.timestamps(true, true);
       });
       console.log('✅ Tabela [recurring_transactions] criada.');
+    } else {
+      const hasNextDate = await db.schema.hasColumn('recurring_transactions', 'next_date');
+      if (!hasNextDate) {
+        await db.schema.alterTable('recurring_transactions', table => {
+          table.date('next_date').nullable();
+        });
+        // Inicializar next_date com start_date para registros existentes
+        await db('recurring_transactions').update({
+          next_date: db.ref('start_date')
+        });
+        console.log('✅ Coluna [next_date] adicionada à tabela [recurring_transactions].');
+      }
     }
 
     // Tabela de Projeções (Snapshots)

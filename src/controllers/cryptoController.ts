@@ -30,16 +30,23 @@ export const getTransactions = async (req: AuthRequest, res: Response) => {
 };
 
 export const createTransaction = async (req: AuthRequest, res: Response) => {
-  const userId = req.user!.id;
-  const { symbol, type, quantity, price, date, account_id } = req.body;
+  // Auth check obrigatório antes de qualquer insert
+  if (!req.user || !req.user.id) {
+    return sendError(res, 'Usuário não autenticado', 401);
+  }
+
+  const userId = req.user.id;
+  const { symbol, type, quantity, price_at_time, date, account_id } = req.body;
 
   try {
     await db.transaction(async (trx) => {
       let transactionId = null;
 
-      // Se uma conta foi selecionada, cria a transação principal e atualiza o saldo
+      // 1. Bloco financeiro principal (Comentado porque depende de account_id na tabela crypto_transactions para vínculo futuro)
+      // account_id removido temporariamente porque coluna não existe na tabela crypto_transactions
+      /* 
       if (account_id) {
-        const amount = type === 'buy' ? -(quantity * price) : (quantity * price);
+        const amount = type === 'buy' ? -(quantity * price_at_time) : (quantity * price_at_time);
         const transactionType = type === 'buy' ? 'expense' : 'income';
         const description = `${type === 'buy' ? 'Compra' : 'Venda'} de ${quantity} ${symbol}`;
 
@@ -60,30 +67,21 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
           .where({ id: account_id, user_id: userId })
           .increment('balance', amount);
       }
+      */
 
-      // Cria a transação de cripto
-      await trx('crypto_transactions').insert({
-        user_id: userId,
-        symbol,
-        type,
-        quantity,
-        price,
-        date,
-        account_id: account_id || null,
-        transaction_id: transactionId
-      });
-
-      // Atualiza ou cria o ativo (Asset)
-      const existingAsset = await trx('assets')
+      // 2. Busca ou cria o ativo (Asset) para obter o asset_id
+      let existingAsset = await trx('assets')
         .where({ user_id: userId, symbol })
         .first();
 
+      let assetId;
       if (existingAsset) {
+        assetId = existingAsset.id;
         let newQuantity = Number(existingAsset.quantity);
         let newAveragePrice = Number(existingAsset.average_price);
 
         if (type === 'buy') {
-          const totalCost = (newQuantity * newAveragePrice) + (Number(quantity) * Number(price));
+          const totalCost = (newQuantity * newAveragePrice) + (Number(quantity) * Number(price_at_time));
           newQuantity += Number(quantity);
           newAveragePrice = newQuantity > 0 ? totalCost / newQuantity : 0;
         } else {
@@ -102,28 +100,49 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
             updated_at: db.fn.now()
           });
       } else if (type === 'buy') {
-        await trx('assets').insert({
+        const [newAssetId] = await trx('assets').insert({
           user_id: userId,
           symbol,
           name: symbol,
           type: 'crypto',
           quantity,
-          average_price: price
+          average_price: price_at_time
         });
+        assetId = newAssetId;
       }
+
+      // Verificação de asset_id adicionada pra evitar insert inválido.
+      if (!assetId) {
+        if (type === 'sell') {
+          throw new Error('Ativo não encontrado para venda');
+        }
+        throw new Error('Não foi possível localizar ou criar o ativo para esta transação');
+      }
+
+      // 3. Cria a transação de cripto (Sem account_id, symbol e transaction_id)
+      await trx('crypto_transactions').insert({
+        user_id: userId,
+        asset_id: assetId,
+        type,
+        quantity,
+        price_at_time, // Usando price_at_time para bater com o esquema original do banco
+        date,
+        // account_id removido temporariamente porque coluna não existe na tabela
+        // transaction_id removido porque coluna não existe na tabela
+      });
     });
 
     return sendSuccess(res, { message: 'Transação de cripto registrada com sucesso' }, 201);
   } catch (error) {
     console.error('Erro ao registrar transação de cripto:', error);
-    return sendError(res, 'Erro ao registrar transação de cripto');
+    return sendError(res, error instanceof Error ? error.message : 'Erro ao registrar transação de cripto');
   }
 };
 
 export const updateTransaction = async (req: AuthRequest, res: Response) => {
   const userId = req.user!.id;
   const { id } = req.params;
-  const { quantity, price, date } = req.body;
+  const { quantity, price_at_time, date } = req.body;
 
   try {
     await db.transaction(async (trx) => {
@@ -134,9 +153,10 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
       if (!oldTx) throw new Error('Transação não encontrada');
 
       // Atualiza a transação principal se existir
+      // account_id removido temporariamente porque coluna não existe na tabela
       if (oldTx.transaction_id && oldTx.account_id) {
-        const oldAmount = oldTx.type === 'buy' ? -(oldTx.quantity * oldTx.price) : (oldTx.quantity * oldTx.price);
-        const newAmount = oldTx.type === 'buy' ? -(quantity * price) : (quantity * price);
+        const oldAmount = oldTx.type === 'buy' ? -(oldTx.quantity * oldTx.price_at_time) : (oldTx.quantity * oldTx.price_at_time);
+        const newAmount = oldTx.type === 'buy' ? -(quantity * price_at_time) : (quantity * price_at_time);
         const difference = newAmount - oldAmount;
 
         await trx('transactions')
@@ -151,11 +171,11 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
       // Atualiza a transação de cripto
       await trx('crypto_transactions')
         .where({ id, user_id: userId })
-        .update({ quantity, price, date, updated_at: db.fn.now() });
+        .update({ quantity, price_at_time, date, updated_at: db.fn.now() });
 
       // Recalcula o ativo
       const allTxs = await trx('crypto_transactions')
-        .where({ user_id: userId, symbol: oldTx.symbol })
+        .where({ user_id: userId, asset_id: oldTx.asset_id })
         .orderBy('date', 'asc');
 
       let newQuantity = 0;
@@ -164,7 +184,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
       for (const tx of allTxs) {
         if (tx.type === 'buy') {
           newQuantity += Number(tx.quantity);
-          totalCost += Number(tx.quantity) * Number(tx.price);
+          totalCost += Number(tx.quantity) * Number(tx.price_at_time);
         } else {
           newQuantity -= Number(tx.quantity);
           if (newQuantity <= 0) {
@@ -208,8 +228,9 @@ export const deleteTransaction = async (req: AuthRequest, res: Response) => {
       if (!tx) throw new Error('Transação não encontrada');
 
       // Estorna a transação principal se existir
+      // account_id removido temporariamente porque coluna não existe na tabela
       if (tx.transaction_id && tx.account_id) {
-        const amountToReverse = tx.type === 'buy' ? (tx.quantity * tx.price) : -(tx.quantity * tx.price);
+        const amountToReverse = tx.type === 'buy' ? (tx.quantity * tx.price_at_time) : -(tx.quantity * tx.price_at_time);
         
         await trx('accounts')
           .where({ id: tx.account_id, user_id: userId })
@@ -227,7 +248,7 @@ export const deleteTransaction = async (req: AuthRequest, res: Response) => {
 
       // Recalcula o ativo
       const allTxs = await trx('crypto_transactions')
-        .where({ user_id: userId, symbol: tx.symbol })
+        .where({ user_id: userId, asset_id: tx.asset_id })
         .orderBy('date', 'asc');
 
       let newQuantity = 0;
@@ -236,7 +257,7 @@ export const deleteTransaction = async (req: AuthRequest, res: Response) => {
       for (const t of allTxs) {
         if (t.type === 'buy') {
           newQuantity += Number(t.quantity);
-          totalCost += Number(t.quantity) * Number(t.price);
+          totalCost += Number(t.quantity) * Number(t.price_at_time);
         } else {
           newQuantity -= Number(t.quantity);
           if (newQuantity <= 0) {
@@ -292,7 +313,7 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
     await db.transaction(async (trx) => {
       const asset = await trx('assets').where({ id, user_id: userId }).first();
       if (asset) {
-        await trx('crypto_transactions').where({ user_id: userId, symbol: asset.symbol }).delete();
+        await trx('crypto_transactions').where({ user_id: userId, asset_id: asset.id }).delete();
         await trx('assets').where({ id, user_id: userId }).delete();
       }
     });
@@ -300,5 +321,23 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Erro ao excluir ativo de cripto:', error);
     return sendError(res, 'Erro ao excluir ativo');
+  }
+};
+
+export const getHistory = async (req: AuthRequest, res: Response) => {
+  const { symbol } = req.params;
+  const { timeframe } = req.query;
+  
+  try {
+    // Simples: busca os últimos 100 registros
+    const history = await db('crypto_price_history')
+      .where('symbol', symbol.toUpperCase())
+      .orderBy('timestamp', 'desc')
+      .limit(100);
+      
+    return sendSuccess(res, history.reverse());
+  } catch (error) {
+    console.error('Erro ao buscar histórico de preço:', error);
+    return sendError(res, 'Erro ao buscar histórico');
   }
 };

@@ -260,10 +260,10 @@ const ReportsView: React.FC = () => {
                   <h3 id="wealth-distribution-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Distribuição de Patrimônio</h3>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px] items-center">
-                <div className="h-full" role="img" aria-label="Gráfico de pizza mostrando a distribuição do patrimônio">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px] min-h-[300px] items-center">
+                <div className="h-full min-h-[300px]" role="img" aria-label="Gráfico de pizza mostrando a distribuição do patrimônio">
                   {isMounted && (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100} initialDimension={{ width: 300, height: 300 }}>
                       <RePieChart>
                         <Pie
                           data={assetDistribution}
@@ -309,9 +309,9 @@ const ReportsView: React.FC = () => {
                   <h3 id="revenue-expense-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Receitas vs Despesas</h3>
                 </div>
               </div>
-              <div className="h-[300px]" role="img" aria-label="Gráfico de barras comparando receitas e despesas mensais">
+              <div className="h-[300px] min-h-[300px]" role="img" aria-label="Gráfico de barras comparando receitas e despesas mensais">
                 {isMounted && (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100} initialDimension={{ width: 300, height: 300 }}>
                     <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#3C3C45" vertical={false} />
                       <XAxis dataKey="month" stroke="#8E9299" fontSize={10} tickLine={false} axisLine={false} />
@@ -336,10 +336,10 @@ const ReportsView: React.FC = () => {
                   <h3 id="expense-composition-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Composição de Gastos</h3>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px] items-center">
-                <div className="h-full" role="img" aria-label="Gráfico de pizza mostrando a composição de gastos por categoria">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px] min-h-[300px] items-center">
+                <div className="h-full min-h-[300px]" role="img" aria-label="Gráfico de pizza mostrando a composição de gastos por categoria">
                   {isMounted && (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100} initialDimension={{ width: 300, height: 300 }}>
                       <RePieChart>
                         <Pie
                           data={categoryData}
@@ -544,9 +544,9 @@ const ReportsView: React.FC = () => {
               <Activity className="text-brand-blue" size={20} aria-hidden="true" />
               <h3 id="monthly-performance-chart-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Performance Mensal (Resultado)</h3>
             </div>
-            <div className="h-[250px]" role="img" aria-label="Gráfico de linha mostrando o lucro mensal (receitas menos despesas)">
+            <div className="h-[250px] min-h-[250px]" role="img" aria-label="Gráfico de linha mostrando o lucro mensal (receitas menos despesas)">
               {isMounted && (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={250} minWidth={100} initialDimension={{ width: 300, height: 250 }}>
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#3C3C45" vertical={false} />
                     <XAxis dataKey="month" stroke="#8E9299" fontSize={10} tickLine={false} axisLine={false} />

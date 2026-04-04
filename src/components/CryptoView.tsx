@@ -13,7 +13,8 @@ import Modal from './Modal';
 
 const AssetRow = ({ asset, onEdit }: { asset: any, onEdit: (asset: any) => void }) => {
   const { price, isLoading } = useMarketPrice(asset.symbol);
-  const currentPrice = price || asset.current_price || 0;
+  const USD_TO_BRL = 5.16;
+  const currentPrice = (price ? price * USD_TO_BRL : 0) || asset.current_price || 0;
   const averagePrice = asset.average_price || 0;
   const totalValue = asset.quantity * currentPrice;
   const totalInvested = asset.quantity * averagePrice;
@@ -70,7 +71,7 @@ interface CryptoViewProps {
 
 export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onNavigateToMarketplace }) => {
   const { derivedData, createCryptoTransaction, updateCryptoAsset, deleteCryptoAsset, deleteCryptoTransaction, updateCryptoTransaction } = useFinance();
-  const { cryptoAssets, cryptoTransactions, accounts } = derivedData;
+  const { cryptoAssets, cryptoTransactions, accounts, cryptoValue: totalCryptoValue } = derivedData;
   const { token } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -78,6 +79,7 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
   const [editingTx, setEditingTx] = useState<any | null>(null);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+  const [priceEditedManually, setPriceEditedManually] = useState(false);
   const [formData, setFormData] = useState({
     symbol: '',
     name: '',
@@ -95,36 +97,63 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
     date: ''
   });
 
-  // Debounce para busca de preço
+  const { price: realTimePrice, name: realTimeName, isLoading: isRealTimeLoading } = useMarketPrice(
+    formData.symbol.length >= 2 ? formData.symbol : '',
+    'crypto'
+  );
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (formData.symbol && formData.symbol.length >= 2) {
-        fetchPrice(formData.symbol, formData.date);
-      }
-    }, 800);
+    console.log('CryptoView: realTimePrice changed', realTimePrice);
+    console.log('CryptoView: realTimeName changed', realTimeName);
+  }, [realTimePrice, realTimeName]);
 
-    return () => clearTimeout(timer);
-  }, [formData.symbol, formData.date]);
+  // Single source of truth for auto-filling
+  useEffect(() => {
+    if (realTimeName && !formData.name) {
+      setFormData(prev => ({ ...prev, name: realTimeName }));
+    }
+    if (realTimePrice !== null && !priceEditedManually) {
+      setFormData(prev => ({ ...prev, price_at_time: realTimePrice.toString() }));
+    }
+  }, [realTimeName, realTimePrice, priceEditedManually]);
 
-  const fetchPrice = async (symbol: string, date?: string) => {
+  // Reset manual edit flag when symbol changes
+  useEffect(() => {
+    setPriceEditedManually(false);
+  }, [formData.symbol]);
+
+  useEffect(() => {
+    if (realTimePrice !== null && !priceEditedManually) {
+      setFormData(prev => ({
+        ...prev,
+        price_at_time: realTimePrice.toString()
+      }));
+    }
+  }, [realTimePrice, priceEditedManually]);
+
+  const fetchPrice = async (symbol: string, force: boolean = false) => {
     if (!symbol || !token) return;
+    // Se o usuário editou manualmente, só busca se for forçado (botão de refresh)
+    if (priceEditedManually && !force) return;
+    
     setIsFetchingPrice(true);
     try {
       const url = new URL(`/api/market/price/${symbol}`, window.location.origin);
-      if (date) {
-        url.searchParams.append('date', date);
-      }
+      url.searchParams.append('type', 'crypto');
       const res = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.price) {
+        const responseData = await res.json();
+        if (responseData.success && responseData.data && responseData.data.price) {
           setFormData(prev => ({ 
             ...prev, 
-            price_at_time: data.price.toString(),
-            name: data.name || prev.name
+            price_at_time: responseData.data.price.toString(),
+            name: responseData.data.name || prev.name
           }));
+          if (force) {
+            setPriceEditedManually(false); // Reset manual flag if forced refresh
+          }
         }
       }
     } catch (error) {
@@ -188,8 +217,6 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
     );
   }
 
-  const totalCryptoValue = cryptoAssets.reduce((acc, asset) => acc + (asset.quantity * asset.current_price), 0);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await createCryptoTransaction({
@@ -227,7 +254,7 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
   const handleSymbolBlur = async () => {
     // Mantido para compatibilidade, mas a lógica agora está no useEffect com debounce
     if (formData.symbol && formData.symbol.length >= 2) {
-      fetchPrice(formData.symbol, formData.date);
+      fetchPrice(formData.symbol, true); // Força a busca ao clicar no botão
     }
   };
 
@@ -405,26 +432,35 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
                     type="text" 
                     required
                     value={formData.symbol}
-                    onChange={e => setFormData({...formData, symbol: e.target.value.toUpperCase()})}
-                    onBlur={handleSymbolBlur}
+                    onChange={e => {
+                      console.log('CryptoView: symbol changed', e.target.value);
+                      setFormData({...formData, symbol: e.target.value.toUpperCase()});
+                    }}
                   />
                 </div>
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={handleSymbolBlur}
-                  disabled={!formData.symbol || isFetchingPrice}
+                  disabled={!formData.symbol || isFetchingPrice || isRealTimeLoading}
                   className="mb-[2px] px-3 py-2 h-[42px]"
                   title="Buscar preço atual"
                 >
-                  <RefreshCw size={16} className={isFetchingPrice ? "animate-spin" : ""} />
+                  <RefreshCw size={16} className={isFetchingPrice || isRealTimeLoading ? "animate-spin" : ""} />
                 </Button>
               </div>
-              {isFetchingPrice && (
-                <span className="absolute right-14 top-9 text-[10px] text-brand-orange flex items-center gap-1">
-                  Buscando...
-                </span>
-              )}
+              <div className="h-5 mt-1">
+                {realTimePrice !== null && (
+                  <div className="text-[10px] text-brand-blue flex items-center gap-1">
+                    <span>Preço atual: {formatCurrency(realTimePrice)}</span>
+                  </div>
+                )}
+                {(isFetchingPrice || isRealTimeLoading) && (
+                  <span className="text-[10px] text-brand-orange flex items-center gap-1">
+                    Buscando...
+                  </span>
+                )}
+              </div>
             </div>
             <Input 
               id="name"
@@ -456,15 +492,20 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
               value={formData.quantity}
               onChange={e => setFormData({...formData, quantity: e.target.value})}
             />
-            <Input 
-              id="price"
-              label="Preço Unitário (R$)"
-              type="number" 
-              step="any"
-              required
-              value={formData.price_at_time}
-              onChange={e => setFormData({...formData, price_at_time: e.target.value})}
-            />
+            <div className="relative">
+              <Input 
+                id="price"
+                label="Preço Unitário (R$)"
+                type="number" 
+                step="any"
+                required
+                value={formData.price_at_time}
+                onChange={e => {
+                  setFormData({...formData, price_at_time: e.target.value});
+                  setPriceEditedManually(true);
+                }}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -475,7 +516,6 @@ export const CryptoView: React.FC<CryptoViewProps> = ({ isInstalled = false, onN
               required
               value={formData.date}
               onChange={e => setFormData({...formData, date: e.target.value})}
-              onBlur={handleSymbolBlur}
             />
             <Select
               id="account"

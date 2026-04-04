@@ -6,7 +6,8 @@ import {
   updateTransaction, 
   deleteTransaction, 
   updateAsset, 
-  deleteAsset 
+  deleteAsset,
+  getHistory
 } from '../controllers/cryptoController.ts';
 
 const router = express.Router();
@@ -21,5 +22,8 @@ router.get('/transactions', getTransactions);
 router.post('/transactions', createTransaction);
 router.put('/transactions/:id', updateTransaction);
 router.delete('/transactions/:id', deleteTransaction);
+
+// History
+router.get('/history/:symbol', getHistory);
 
 export default router;

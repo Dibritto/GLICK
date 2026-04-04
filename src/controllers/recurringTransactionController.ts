@@ -24,12 +24,26 @@ export const getRecurringTransactions = async (req: AuthRequest, res: Response) 
 export const createRecurringTransaction = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
   try {
+    const data = { ...req.body };
+    
+    // Garantir que ambas as datas existam
+    if (!data.start_date && data.next_date) {
+      data.start_date = data.next_date;
+    } else if (!data.next_date && data.start_date) {
+      data.next_date = data.start_date;
+    } else if (!data.start_date && !data.next_date) {
+      const today = new Date().toISOString().split('T')[0];
+      data.start_date = today;
+      data.next_date = today;
+    }
+    
     const [id] = await db('recurring_transactions').insert({
-      ...req.body,
+      ...data,
       user_id: userId
     });
     return sendSuccess(res, { id, message: 'Transação recorrente criada' }, 201);
   } catch (error) {
+    console.error('Error creating recurring transaction:', error);
     return sendError(res, 'Erro ao criar transação recorrente');
   }
 };

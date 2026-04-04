@@ -18,24 +18,28 @@ export const useFinanceCalculations = ({
   categories,
   goals,
   cards,
+  debts,
   coreStats,
   chartDataApi,
   cryptoAssets,
   cryptoTransactions,
   investmentAssets,
-  investmentTransactions
+  investmentTransactions,
+  cryptoPrices
 }: {
   accounts: Account[];
   transactions: Transaction[];
   categories: Category[];
   goals: Goal[];
   cards: Card[];
+  debts?: any[];
   coreStats: any;
   chartDataApi?: any;
   cryptoAssets: any[];
   cryptoTransactions: any[];
   investmentAssets: any[];
   investmentTransactions: any[];
+  cryptoPrices?: Record<string, number>;
 }) => {
   console.log('[CALCULATIONS] Input data:', {
     accounts: accounts.length,
@@ -160,17 +164,32 @@ export const useFinanceCalculations = ({
   }, [transactions, monthlyTransactions, pendingTransactions, currentMonth, currentYear, coreStats]);
 
   // 3. Balances & Core Metrics
-  const { totalBalance, reservedBalance, investedBalance, totalCardDebt, netWorth, freeCapital, totalCardLimit, totalCardUsed } = useMemo(() => {
+  const { 
+    totalBalance, 
+    reservedBalance, 
+    investedBalance, 
+    cryptoValue,
+    investmentValue,
+    totalCardDebt, 
+    netWorth, 
+    freeCapital, 
+    totalCardLimit, 
+    totalCardUsed, 
+    projectedCardInterest 
+  } = useMemo(() => {
     if (coreStats && coreStats.totalBalance !== undefined) {
       return {
         totalBalance: coreStats.totalBalance,
         reservedBalance: coreStats.reservedBalance || 0,
         investedBalance: coreStats.investedBalance || 0,
+        cryptoValue: 0,
+        investmentValue: 0,
         totalCardDebt: coreStats.totalCreditUsed || 0,
         netWorth: coreStats.netWorth || 0,
         freeCapital: coreStats.freeBalance || 0,
         totalCardLimit: coreStats.totalCreditLimit || 0,
-        totalCardUsed: coreStats.totalCreditUsed || 0
+        totalCardUsed: coreStats.totalCreditUsed || 0,
+        projectedCardInterest: 0
       };
     }
 
@@ -179,22 +198,47 @@ export const useFinanceCalculations = ({
     const tCardDebt = cards.reduce((acc, curr) => acc + Number(curr.current_bill), 0);
     const tCardLimit = cards.reduce((acc, curr) => acc + Number(curr.limit), 0);
     const tCardUsed = cards.reduce((acc, curr) => acc + Number(curr.current_bill || 0), 0);
+    
+    // Calcular juros projetados se pagar o mínimo
+    let totalProjectedInterest = 0;
+    cards.forEach(card => {
+      let balance = Number(card.current_bill || 0);
+      const rate = Number(card.interest_rate || 0.12);
+      let months = 0;
+      while (balance > 0 && months < 60) {
+        months++;
+        const minPayment = Math.max(balance * 0.15, 50);
+        const payment = Math.min(minPayment, balance);
+        balance -= payment;
+        if (balance > 0) {
+          const interest = balance * rate;
+          totalProjectedInterest += interest;
+          balance += interest;
+        }
+      }
+    });
 
-    const cryptoValue = cryptoAssets.reduce((acc, curr) => acc + (Number(curr.quantity) * Number(curr.current_price)), 0);
+    const cryptoValue = cryptoAssets.reduce((acc, curr) => {
+      const price = cryptoPrices?.[curr.symbol] || Number(curr.current_price) || 0;
+      return acc + (Number(curr.quantity) * price);
+    }, 0);
     const investmentValue = investmentAssets.reduce((acc, curr) => acc + (Number(curr.quantity) * Number(curr.current_price)), 0);
     const iBalance = cryptoValue + investmentValue;
 
     return {
-      totalBalance: tBalance,
+      totalBalance: tBalance + iBalance, // Saldo Consolidado inclui investimentos
       reservedBalance: rBalance,
       investedBalance: iBalance,
+      cryptoValue,
+      investmentValue,
       totalCardDebt: tCardDebt,
       netWorth: tBalance + rBalance + iBalance - tCardDebt,
       freeCapital: tBalance - tCardDebt,
       totalCardLimit: tCardLimit,
-      totalCardUsed: tCardUsed
+      totalCardUsed: tCardUsed,
+      projectedCardInterest: totalProjectedInterest
     };
-  }, [accounts, goals, cards, cryptoAssets, investmentAssets, coreStats]);
+  }, [accounts, goals, cards, cryptoAssets, investmentAssets, coreStats, cryptoPrices]);
 
   // 4. Accounts with Projections
   const accountsWithProjections = useMemo(() => {
@@ -320,6 +364,8 @@ export const useFinanceCalculations = ({
       totalBalance: coreStats?.totalBalance ?? totalBalance,
       reservedBalance: coreStats?.reservedBalance ?? reservedBalance,
       investedBalance: coreStats?.investedBalance ?? investedBalance,
+      cryptoValue,
+      investmentValue,
       committedBalance: coreStats?.committedBalance ?? (totalCardDebt + pendingExpense),
       totalCardDebt,
       netWorth: coreStats?.netWorth ?? netWorth,
@@ -346,6 +392,7 @@ export const useFinanceCalculations = ({
       allTransactionsSorted,
       totalCardLimit,
       totalCardUsed,
+      projectedCardInterest,
       completedGoalsCount,
       totalIncome,
       totalExpense,
@@ -354,6 +401,7 @@ export const useFinanceCalculations = ({
       cardsWithDynamicBill: cards,
       goalsWithDynamicAmount: goals,
       categoriesWithSpent,
+      debts: debts || [],
       coreStats: coreStats ? {
         totalBalance: coreStats.totalBalance,
         reservedBalance: coreStats.reservedBalance,

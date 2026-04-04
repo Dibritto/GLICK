@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, ArrowLeftRight, Target, FileText } from 'lucide-react';
+import { Plus, Minus, ArrowLeftRight, Target, FileText, Landmark } from 'lucide-react';
 import Modal from './Modal';
 import { Button } from './ui/Button';
 
@@ -8,6 +8,7 @@ interface QuickActionsProps {
   onAddExpense: () => void;
   onAddTransfer: () => void;
   onAddGoal: () => void;
+  onAddDebt: () => void;
   onNavigateReports: () => void;
 }
 
@@ -16,6 +17,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   onAddExpense, 
   onAddTransfer, 
   onAddGoal, 
+  onAddDebt,
   onNavigateReports 
 }) => {
   return (
@@ -60,6 +62,17 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         title="Criar Meta"
       >
         <Target size={18} />
+      </Button>
+
+      <Button 
+        onClick={onAddDebt}
+        variant="ghost"
+        size="icon"
+        aria-label="Nova Dívida"
+        className="p-2 text-gray-400 hover:text-brand-red hover:bg-brand-red/10 rounded-full transition-all" 
+        title="Nova Dívida"
+      >
+        <Landmark size={18} />
       </Button>
 
       <Button 

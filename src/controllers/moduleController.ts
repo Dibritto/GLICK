@@ -47,7 +47,7 @@ export const deactivateModule = async (req: AuthRequest, res: Response) => {
 
     await db('user_modules')
       .where({ user_id: userId, module_id: moduleRecord.id })
-      .update({ is_active: false, updated_at: db.fn.now() });
+      .update({ status: 'inactive', updated_at: db.fn.now() });
 
     return sendSuccess(res, { message: 'Módulo desativado com sucesso' });
   } catch (error) {

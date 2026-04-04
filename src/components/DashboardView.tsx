@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2, CreditCard, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, Clock, ShieldCheck, ListFilter, BarChart3, Loader2, CreditCard, Wallet, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   AreaChart, 
@@ -55,13 +55,14 @@ const DashboardView: React.FC<MainConsoleProps> = ({
     setIsMounted(true);
   }, []);
 
-  const { transactions, accounts, goals, derivedData, isLoading } = useFinance();
+  const { transactions, accounts, goals, debts, derivedData, isLoading } = useFinance();
   const { 
     totalBalance, 
     reservedBalance,
     investedBalance,
     committedBalance,
     totalCardDebt,
+    projectedCardInterest,
     netWorth,
     freeCapital,
     predictedIncome, 
@@ -130,7 +131,17 @@ const DashboardView: React.FC<MainConsoleProps> = ({
           </article>
 
           <article className="glass-panel technical-border p-4 md:p-5 rounded-lg group card-container min-w-0 flex flex-col justify-between" role="listitem" aria-labelledby="committed-balance-label">
-            <p id="committed-balance-label" className="text-[9px] uppercase tracking-widest text-brand-red mb-2 font-bold leading-tight">Comprometido</p>
+            <div className="flex justify-between items-start mb-2">
+              <p id="committed-balance-label" className="text-[9px] uppercase tracking-widest text-brand-red font-bold leading-tight">Comprometido</p>
+              {projectedCardInterest > 0 && (
+                <Tooltip text={`Juros projetados se pagar apenas o mínimo: ${formatCurrency(projectedCardInterest)}`} position="top">
+                  <div className="flex items-center gap-1 text-[9px] text-brand-red bg-brand-red/10 px-1.5 py-0.5 rounded cursor-help">
+                    <AlertCircle size={10} />
+                    <span>Juros</span>
+                  </div>
+                </Tooltip>
+              )}
+            </div>
             <div className="text-lg md:text-xl font-mono font-bold text-brand-red whitespace-nowrap overflow-hidden text-ellipsis" aria-label={`R$ ${formatCurrency(committedBalance, false)}`}>
               <span className="text-[10px] md:text-xs mr-1 opacity-50" aria-hidden="true">R$</span>
               {formatCurrency(committedBalance, false)}
@@ -174,9 +185,9 @@ const DashboardView: React.FC<MainConsoleProps> = ({
             <BarChart3 size={18} className="text-brand-blue" aria-hidden="true" />
             <h2 id="spending-flow-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Fluxo de Gastos Mensal</h2>
           </div>
-          <div className="glass-panel technical-border p-6 rounded-lg h-[300px]" role="img" aria-label="Gráfico de área mostrando receitas e despesas mensais">
+          <div className="glass-panel technical-border p-6 rounded-lg h-[300px] min-h-[300px]" role="img" aria-label="Gráfico de área mostrando receitas e despesas mensais">
             {isMounted && (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={300} minWidth={100} initialDimension={{ width: 300, height: 300 }}>
                 <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
@@ -397,7 +408,57 @@ const DashboardView: React.FC<MainConsoleProps> = ({
         </div>
       </section>
 
-      {/* PAINEL 4 — VELOCIDADE DO DINHEIRO */}
+      {/* PAINEL 4 — DÍVIDAS ATIVAS */}
+      <section className="space-y-4" aria-labelledby="active-debts-title">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-brand-red" aria-hidden="true" />
+            <h2 id="active-debts-title" className="text-sm font-bold uppercase tracking-widest text-gray-400">Dívidas Ativas</h2>
+          </div>
+          <Button 
+            onClick={() => onNavigate?.('dividas')}
+            variant="ghost"
+            size="sm"
+            className="text-[10px] uppercase font-bold text-brand-red hover:text-brand-red/80"
+            aria-label="Planejar Pagamento"
+          >
+            Planejar Pagamento
+          </Button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {isLoading ? (
+            <div className="col-span-full py-10 text-center">
+              <Loader2 size={24} className="text-brand-red animate-spin mx-auto" aria-hidden="true" />
+            </div>
+          ) : debts && debts.length > 0 ? (
+            debts.map((debt: any) => (
+              <article key={debt.id} className="glass-panel technical-border p-5 rounded-lg flex flex-col justify-between hover:border-brand-red/30 transition-colors">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-xs font-bold text-white truncate">{debt.name}</p>
+                    <Badge variant="neutral">{debt.payment_method}</Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mb-4">{debt.total_months} meses • {(debt.monthly_rate * 100).toFixed(2)}% a.m.</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Saldo Restante</p>
+                  <p className="text-lg font-mono font-bold text-brand-red">{formatCurrency(debt.principal)}</p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center glass-panel technical-border rounded-lg">
+              <div className="flex flex-col items-center gap-2 opacity-50" role="status">
+                <ShieldCheck size={24} className="text-gray-600" aria-hidden="true" />
+                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Nenhuma dívida ativa</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* PAINEL 5 — VELOCIDADE DO DINHEIRO */}
       <section 
         className="grid gap-6 pb-12" 
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}

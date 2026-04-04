@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { Account, Transaction, Category, Goal, Card, DerivedData } from '../types';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
+import { cryptoPriceService } from '../services/cryptoPriceService';
 
 interface FinanceContextType {
   accounts: Account[];
@@ -10,6 +12,7 @@ interface FinanceContextType {
   categories: Category[];
   goals: Goal[];
   cards: Card[];
+  debts: any[];
   modules: any[];
   recurringTransactions: any[];
   forecasts: any[];
@@ -58,6 +61,10 @@ interface FinanceContextType {
   // Recalculate
   recalculateAccountBalance: (id: number) => Promise<void>;
 
+  // Debts
+  createDebt: (data: any) => Promise<void>;
+  simulatePayoff: (extraMonthly: number, strategy: string) => Promise<any>;
+
   // Crypto
   createCryptoTransaction: (data: any) => Promise<void>;
   updateCryptoAsset: (id: number, data: any) => Promise<void>;
@@ -76,8 +83,10 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
+const EMPTY_ARRAY: any[] = [];
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const queryClient = useQueryClient();
 
   const fetchApi = async (url: string) => {
@@ -88,32 +97,81 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return json.success !== undefined ? json.data : json;
   };
 
-  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({ queryKey: ['accounts'], queryFn: () => fetchApi('/api/accounts'), enabled: !!token });
-  const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({ queryKey: ['transactions'], queryFn: () => fetchApi('/api/transactions'), enabled: !!token });
-  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({ queryKey: ['categories'], queryFn: () => fetchApi('/api/categories'), enabled: !!token });
-  const { data: goals = [], isLoading: isLoadingGoals } = useQuery({ queryKey: ['goals'], queryFn: () => fetchApi('/api/goals'), enabled: !!token });
-  const { data: cards = [], isLoading: isLoadingCards } = useQuery({ queryKey: ['cards'], queryFn: () => fetchApi('/api/cards'), enabled: !!token });
+  const { data: accounts = EMPTY_ARRAY, isLoading: isLoadingAccounts } = useQuery({ queryKey: ['accounts'], queryFn: () => fetchApi('/api/accounts'), enabled: !!token });
+  const { data: transactions = EMPTY_ARRAY, isLoading: isLoadingTransactions } = useQuery({ queryKey: ['transactions'], queryFn: () => fetchApi('/api/transactions'), enabled: !!token });
+  const { data: categories = EMPTY_ARRAY, isLoading: isLoadingCategories } = useQuery({ queryKey: ['categories'], queryFn: () => fetchApi('/api/categories'), enabled: !!token });
+  const { data: goals = EMPTY_ARRAY, isLoading: isLoadingGoals } = useQuery({ queryKey: ['goals'], queryFn: () => fetchApi('/api/goals'), enabled: !!token });
+  const { data: cards = EMPTY_ARRAY, isLoading: isLoadingCards } = useQuery({ queryKey: ['cards'], queryFn: () => fetchApi('/api/cards'), enabled: !!token });
+  const { data: debts = EMPTY_ARRAY, isLoading: isLoadingDebts } = useQuery({ queryKey: ['debts'], queryFn: () => fetchApi('/api/debts'), enabled: !!token });
   const { data: coreStats = null, isLoading: isLoadingCoreStats } = useQuery({ queryKey: ['coreStats'], queryFn: () => fetchApi('/api/finance/core-stats'), enabled: !!token });
   const { data: chartDataApi = null, isLoading: isLoadingChartData } = useQuery({ queryKey: ['chartData'], queryFn: () => fetchApi('/api/finance/chart-data'), enabled: !!token });
-  const { data: modules = [], isLoading: isLoadingModules } = useQuery({ queryKey: ['modules'], queryFn: () => fetchApi('/api/modules'), enabled: !!token });
-  const { data: recurringTransactions = [], isLoading: isLoadingRecurring } = useQuery({ queryKey: ['recurringTransactions'], queryFn: () => fetchApi('/api/recurring-transactions'), enabled: !!token });
-  const { data: forecasts = [], isLoading: isLoadingForecasts } = useQuery({ queryKey: ['forecasts'], queryFn: () => fetchApi('/api/forecasts'), enabled: !!token });
-  const { data: cryptoAssets = [], isLoading: isLoadingCryptoAssets } = useQuery({ queryKey: ['cryptoAssets'], queryFn: () => fetchApi('/api/crypto/assets'), enabled: !!token });
-  const { data: cryptoTransactions = [], isLoading: isLoadingCryptoTx } = useQuery({ queryKey: ['cryptoTransactions'], queryFn: () => fetchApi('/api/crypto/transactions'), enabled: !!token });
-  const { data: investmentAssets = [], isLoading: isLoadingInvAssets } = useQuery({ queryKey: ['investmentAssets'], queryFn: () => fetchApi('/api/investments/assets'), enabled: !!token });
-  const { data: investmentTransactions = [], isLoading: isLoadingInvTx } = useQuery({ queryKey: ['investmentTransactions'], queryFn: () => fetchApi('/api/investments/transactions'), enabled: !!token });
+  const { data: modules = EMPTY_ARRAY, isLoading: isLoadingModules } = useQuery({ queryKey: ['modules'], queryFn: () => fetchApi('/api/modules'), enabled: !!token });
+  const { data: recurringTransactions = EMPTY_ARRAY, isLoading: isLoadingRecurring } = useQuery({ queryKey: ['recurringTransactions'], queryFn: () => fetchApi('/api/recurring-transactions'), enabled: !!token });
+  const { data: forecasts = EMPTY_ARRAY, isLoading: isLoadingForecasts } = useQuery({ queryKey: ['forecasts'], queryFn: () => fetchApi('/api/forecasts'), enabled: !!token });
+  const { data: cryptoAssets = EMPTY_ARRAY, isLoading: isLoadingCryptoAssets } = useQuery({ queryKey: ['cryptoAssets'], queryFn: () => fetchApi('/api/crypto/assets'), enabled: !!token });
+  const { data: cryptoTransactions = EMPTY_ARRAY, isLoading: isLoadingCryptoTx } = useQuery({ queryKey: ['cryptoTransactions'], queryFn: () => fetchApi('/api/crypto/transactions'), enabled: !!token });
+  const { data: investmentAssets = EMPTY_ARRAY, isLoading: isLoadingInvAssets } = useQuery({ queryKey: ['investmentAssets'], queryFn: () => fetchApi('/api/investments/assets'), enabled: !!token });
+  const { data: investmentTransactions = EMPTY_ARRAY, isLoading: isLoadingInvTx } = useQuery({ queryKey: ['investmentTransactions'], queryFn: () => fetchApi('/api/investments/transactions'), enabled: !!token });
 
-  const isLoading = isLoadingAccounts || isLoadingTransactions || isLoadingCategories || isLoadingGoals || isLoadingCards || isLoadingCoreStats || isLoadingChartData || isLoadingModules || isLoadingRecurring || isLoadingForecasts || isLoadingCryptoAssets || isLoadingCryptoTx || isLoadingInvAssets || isLoadingInvTx;
+  const isLoading = isLoadingAccounts || isLoadingTransactions || isLoadingCategories || isLoadingGoals || isLoadingCards || isLoadingDebts || isLoadingCoreStats || isLoadingChartData || isLoadingModules || isLoadingRecurring || isLoadingForecasts || isLoadingCryptoAssets || isLoadingCryptoTx || isLoadingInvAssets || isLoadingInvTx;
 
   const refreshData = useCallback(async () => {
     await queryClient.invalidateQueries();
   }, [queryClient]);
+
+  // WebSocket connection
+  useEffect(() => {
+    if (!user) return;
+
+    // Conecta ao mesmo host/porta
+    const socket = io();
+
+    socket.on('connect', () => {
+      console.log('🔗 Conectado ao WebSocket');
+      socket.emit('join-user-room', user.id);
+    });
+
+    socket.on('transaction-processed', (data) => {
+      console.log('⚡ Transação processada via WS:', data);
+      refreshData();
+    });
+
+    socket.on('bill-closed', (data) => {
+      console.log('⚡ Fatura fechada via WS:', data);
+      refreshData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, refreshData]);
 
   // Função para forçar a data a ser interpretada localmente, ignorando o fuso horário
   const getLocalDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
     return new Date(year, month - 1, day);
   };
+
+  // Provedor de preços em tempo real
+  const [cryptoPrices, setCryptoPrices] = useState<Record<string, number>>({});
+  const USD_TO_BRL = 5.16;
+
+  useEffect(() => {
+    const updatePrices = () => {
+      const prices: Record<string, number> = {};
+      cryptoAssets.forEach((asset: any) => {
+        const priceUSD = cryptoPriceService.getCurrentPrice(asset.symbol);
+        if (priceUSD) {
+          prices[asset.symbol] = priceUSD * USD_TO_BRL;
+        }
+      });
+      setCryptoPrices(prices);
+    };
+
+    updatePrices();
+    const interval = setInterval(updatePrices, 30000); // Polling a cada 30s
+    return () => clearInterval(interval);
+  }, [cryptoAssets]);
 
   // Cálculos Centralizados (Elimina redundância de API e lógica)
   const derivedData = useFinanceCalculations({
@@ -122,12 +180,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     categories,
     goals,
     cards,
+    debts,
     coreStats,
     chartDataApi,
     cryptoAssets,
     cryptoTransactions,
     investmentAssets,
-    investmentTransactions
+    investmentTransactions,
+    cryptoPrices
   });
 
   const apiAction = useCallback(async (url: string, method: string, body?: any) => {
@@ -242,6 +302,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteCategory = async (id: number) => {
     await apiAction(`/api/categories/${id}`, 'DELETE');
     invalidate(['categories']);
+  };
+
+  const createDebt = async (data: any) => {
+    await apiAction('/api/debts', 'POST', data);
+    invalidate(['debts', 'transactions', 'coreStats']);
+  };
+
+  const simulatePayoff = async (extraMonthly: number, strategy: string) => {
+    return await apiAction('/api/debts/simulate', 'POST', { extra_monthly: extraMonthly, strategy });
   };
 
   const createRecurringTransaction = async (data: any) => {
@@ -366,6 +435,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       categories, 
       goals, 
       cards,
+      debts,
       modules,
       recurringTransactions,
       forecasts,
@@ -395,6 +465,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createCategory,
       updateCategory,
       deleteCategory,
+      createDebt,
+      simulatePayoff,
       createCryptoTransaction,
       updateCryptoAsset,
       deleteCryptoAsset,

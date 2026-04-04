@@ -18,7 +18,8 @@ import {
   Gem,
   Lock,
   X,
-  LogOut
+  LogOut,
+  Landmark
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Tooltip from './Tooltip';
@@ -32,6 +33,7 @@ const navItems = [
   { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight, module: 'core' },
   { id: 'contas', label: 'Contas', icon: Wallet, module: 'core' },
   { id: 'cartoes', label: 'Cartões', icon: CreditCard, module: 'core' },
+  { id: 'dividas', label: 'Dívidas', icon: Landmark, module: 'core' },
   { id: 'categorias', label: 'Categorias', icon: Tags, module: 'core' },
   { id: 'metas', label: 'Metas', icon: Target, module: 'core' },
   { id: 'relatorios', label: 'Relatórios', icon: BarChart3, module: 'core' },

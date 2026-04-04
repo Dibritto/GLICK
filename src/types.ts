@@ -60,6 +60,7 @@ export interface Card {
   due_day: number;
   color: string;
   current_bill: number;
+  interest_rate?: number;
 }
 
 export interface CryptoAsset {
@@ -138,10 +139,13 @@ export interface DerivedData {
   allTransactionsSorted: Transaction[];
   totalCardLimit: number;
   totalCardUsed: number;
+  projectedCardInterest: number;
   completedGoalsCount: number;
   totalIncome: number;
   totalExpense: number;
   investedBalance: number;
+  cryptoValue: number;
+  investmentValue: number;
   incomeChange: number;
   expenseChange: number;
   cardsWithDynamicBill: Card[];

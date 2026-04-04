@@ -2,10 +2,69 @@ import { Request, Response } from 'express';
 import db from '../lib/db.ts';
 import { validateAndRegisterTransaction } from '../lib/financeEngine.ts';
 import { sendSuccess, sendError } from '../utils/apiResponse.ts';
+import { io } from '../../server.ts';
 
 interface AuthRequest extends Request {
   user?: { id: number; email: string };
 }
+
+// Helper para criar transações parceladas
+const createInstallmentTransaction = async (userId: number, data: any) => {
+  const { account_id, category, date, description, total_value, installments, card_id } = data;
+
+  if (!total_value || total_value <= 0) {
+    throw new Error('Valor total deve ser maior que zero');
+  }
+  if (!installments || installments < 1 || installments > 36) {
+    throw new Error('Número de parcelas deve estar entre 1 e 36');
+  }
+
+  const installment_value = total_value / installments;
+
+  return await db.transaction(async (trx) => {
+    // 1. Criar a primeira parcela como transação imediata
+    const [txId] = await trx('transactions').insert({
+      user_id: userId,
+      account_id,
+      card_id,
+      type: 'expense', // Parcelas são tratadas como despesas
+      category,
+      amount: installment_value,
+      date,
+      description: `${description} (1/${installments})`,
+      status: 'confirmed', // Primeira parcela já debita
+      installment_id: `inst_${Date.now()}` // ID agrupador
+    });
+
+    // 2. Atualizar o saldo da conta (ou cartão)
+    if (card_id) {
+      await trx('cards').where({ id: card_id, user_id: userId }).increment('current_bill', installment_value);
+    } else {
+      await trx('accounts').where({ id: account_id, user_id: userId }).decrement('balance', installment_value);
+    }
+
+    // 3. Gerar recorrências para as parcelas restantes
+    if (installments > 1) {
+      const nextDate = new Date(date);
+      nextDate.setMonth(nextDate.getMonth() + 1);
+
+      await trx('recurring_transactions').insert({
+        user_id: userId,
+        account_id,
+        card_id,
+        type: 'expense',
+        category,
+        amount: installment_value,
+        description: `${description} (Parcela)`,
+        frequency: 'monthly',
+        next_date: nextDate.toISOString().split('T')[0],
+        status: 'pending' // Conforme solicitado
+      });
+    }
+
+    return txId;
+  });
+};
 
 export const listTransactions = async (req: AuthRequest, res: Response) => {
   const userId = req.user?.id;
@@ -69,7 +128,20 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
   if (!userId) return sendError(res, 'Não autorizado', 401);
   
   try {
-    const id = await validateAndRegisterTransaction(userId, req.body);
+    let id;
+    
+    if (req.body.type === 'installment') {
+      console.log(`[TRANSACTION] Criando transação parcelada para usuário ${userId}`);
+      id = await createInstallmentTransaction(userId, req.body);
+    } else {
+      id = await validateAndRegisterTransaction(userId, req.body);
+    }
+    
+    // Emit WebSocket event
+    if (io) {
+      io.to(`user_${userId}`).emit('transaction-processed', { id, type: 'create' });
+    }
+
     return sendSuccess(res, { id, message: 'Transação registrada com sucesso' }, 201);
   } catch (error: any) {
     console.error('Erro ao registrar transação:', error);
